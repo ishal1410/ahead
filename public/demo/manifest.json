@@ -1,0 +1,37 @@
+{
+  "persona": {
+    "name": "Maya",
+    "label": "AI-generated persona, preparing for treatment",
+    "photo": "/demo/maya.jpg"
+  },
+  "passport": {
+    "hairHex": "#7A5A44",
+    "hairLength": "mid",
+    "brow": {
+      "preset": "SoftArch1",
+      "hex": "#564843",
+      "thickness": 0,
+      "intensity": 80
+    }
+  },
+  "renders": {
+    "brow": {
+      "Straight1": "/demo/brow-Straight1.jpg",
+      "SoftArch1": "/demo/brow-SoftArch1.jpg",
+      "HighArch1": "/demo/brow-HighArch1.jpg"
+    },
+    "wig": {
+      "chestnut-wave": "/demo/wig-chestnut-wave.jpg",
+      "soft-chestnut": "/demo/wig-soft-chestnut.jpg",
+      "espresso-straight": "/demo/wig-espresso-straight.jpg",
+      "caramel-bob": "/demo/wig-caramel-bob.jpg",
+      "auburn-long": "/demo/wig-auburn-long.jpg",
+      "black-pixie": "/demo/wig-black-pixie.jpg",
+      "ash-blonde-bob": "/demo/wig-ash-blonde-bob.jpg",
+      "honey-long": "/demo/wig-honey-long.jpg",
+      "silver-short": "/demo/wig-silver-short.jpg"
+    },
+    "hat": {},
+    "browOnWig": "/demo/brow-on-wig.jpg"
+  }
+}

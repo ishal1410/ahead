@@ -1,0 +1,139 @@
+@import "tailwindcss";
+
+/* Ahead design tokens. Light first; dark follows the system setting.
+   Palette: cool linen paper, green-black ink, one accent (passport-cover green). */
+:root {
+  --paper: #f2f3ee;
+  --surface: #fafbf8;
+  --ink: #1c2420;
+  --ink-soft: #536059;
+  --cover: #2e4a3f;
+  --on-cover: #f4f7f3;
+  --tint: #dfe7e1;
+  --rule: #cdd4cc;
+  --guilloche: rgb(46 74 63 / 0.09);
+  --shadow: 0 1px 2px rgb(28 36 32 / 0.05), 0 18px 48px -20px rgb(28 36 32 / 0.22);
+  --danger: #8a2f24;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #111614;
+    --surface: #18201c;
+    --ink: #e6ebe6;
+    --ink-soft: #a2ada6;
+    --cover: #a9cdb9;
+    --on-cover: #0e1a14;
+    --tint: #213029;
+    --rule: #2d3933;
+    --guilloche: rgb(169 205 185 / 0.07);
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 18px 48px -20px rgb(0 0 0 / 0.6);
+    --danger: #f0a196;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-cover: var(--cover);
+  --color-on-cover: var(--on-cover);
+  --color-tint: var(--tint);
+  --color-rule: var(--rule);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-serif);
+  --font-mono: var(--font-code);
+  --ease-calm: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html {
+  background: var(--paper);
+}
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+:focus-visible {
+  outline: 2px solid var(--cover);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+::selection {
+  background: var(--tint);
+}
+
+/* The passport page: a fine guilloche security pattern, like a real document. */
+.guilloche {
+  background-color: var(--surface);
+  background-image:
+    repeating-radial-gradient(circle at 12% 18%, transparent 0 9px, var(--guilloche) 9px 10px),
+    repeating-radial-gradient(circle at 88% 82%, transparent 0 11px, var(--guilloche) 11px 12px);
+}
+
+.mrz {
+  font-family: var(--font-code), ui-monospace, monospace;
+  letter-spacing: 0.14em;
+  word-break: break-all;
+}
+
+/* One quiet entrance per screen change. */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.rise { animation: rise 700ms var(--ease-calm) both; }
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.95; }
+}
+.breathe { animation: breathe 1.8s ease-in-out infinite; }
+
+@keyframes stamp {
+  from { opacity: 0; transform: rotate(-14deg) scale(1.25); }
+  to { opacity: 1; transform: rotate(-8deg) scale(1); }
+}
+.stamp { transform: rotate(-8deg); animation: stamp 600ms var(--ease-calm) both; }
+
+/* "Can you tell?" reveal */
+@keyframes develop {
+  from { opacity: 0; filter: blur(6px); transform: scale(1.015); }
+  to { opacity: 1; filter: none; transform: none; }
+}
+.develop { animation: develop 1100ms var(--ease-calm) both; }
+.reveal-caption { transition: opacity 900ms var(--ease-calm), transform 900ms var(--ease-calm); }
+
+dialog::backdrop {
+  background: rgb(17 22 20 / 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Match Card: print only the card, always in light ink. */
+@media print {
+  @page { size: A5 portrait; margin: 10mm; }
+  :root {
+    --paper: #fff; --surface: #fff; --ink: #111; --ink-soft: #444; --cover: #2e4a3f;
+    --on-cover: #fff; --tint: #eef2ee; --rule: #bbb; --guilloche: rgb(46 74 63 / 0.06);
+  }
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; inset: 0 auto auto 0; width: 100%; box-shadow: none !important; }
+  .no-print { display: none !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
