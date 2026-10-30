@@ -1,4 +1,5 @@
 import type { Passport } from "@/lib/passport";
+import type { DemoManifest } from "@/lib/render";
 import { motion } from "motion/react";
 import { PassportPage } from "./PassportPage";
 import { Button } from "./ui";
@@ -23,7 +24,7 @@ const steps = [
 
 const apis = [
   { name: "Makeup VTO, eyebrows", use: "Draws three brow shapes on your photo so you can find yours, then redraws your saved recipe." },
-  { name: "AI Hairstyle VTO, hair transfer", use: "Shows each wig on your face, ranked by colour match to your saved hair." },
+  { name: "AI Hairstyle VTO, hair transfer", use: "Shows each wig on your face, ranked on a colour ring against the hair shade you saved." },
 ];
 
 const inView = { initial: "hidden", whileInView: "visible", viewport: { once: true, margin: "-60px" } } as const;
@@ -41,6 +42,7 @@ export function Landing({
   saved,
   onOpenSaved,
   specimenPhoto,
+  specimen,
 }: {
   onStart: () => void;
   onDemo: () => void;
@@ -48,24 +50,23 @@ export function Landing({
   saved: Passport | null;
   onOpenSaved: () => void;
   specimenPhoto?: string;
+  // Maya's demo passport, so the specimen never disagrees with the demo it advertises.
+  specimen?: DemoManifest["passport"];
 }) {
   return (
     <main id="main">
-      {/* Hero entrance is CSS (runs before hydration, no SSR mismatch); total under 1s. */}
+      {/* Hero entrance is CSS (runs before hydration, no SSR mismatch). It only moves things:
+          headline, copy and CTAs are fully visible in the very first paint. */}
       <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-10 sm:px-8 md:pt-16 lg:grid-cols-[1.15fr_1fr] lg:gap-16 lg:pb-28">
         <div>
           <h1 className="font-display text-[44px] leading-[1.04] tracking-[-0.02em] sm:text-6xl lg:text-[76px]">
-            <span className="line-mask">
-              <span className="line-in" style={{ animationDelay: "60ms" }}>Capture before.</span>
-            </span>
-            <span className="line-mask">
-              <span className="line-in" style={{ animationDelay: "170ms" }}>Rebuild after.</span>
-            </span>
+            <span className="rise block">Capture before.</span>
+            <span className="rise block" style={{ animationDelay: "70ms" }}>Rebuild after.</span>
           </h1>
-          <p className="enter mt-6 max-w-[34ch] text-lg leading-relaxed text-ink-soft sm:text-xl" style={{ animationDelay: "300ms" }}>
+          <p className="rise mt-6 max-w-[34ch] text-lg leading-relaxed text-ink-soft sm:text-xl" style={{ animationDelay: "140ms" }}>
             For people preparing for chemotherapy, and the people who help them. Save your look now, and match to it later.
           </p>
-          <div className="enter mt-9 flex flex-col gap-3 sm:flex-row" style={{ animationDelay: "380ms" }}>
+          <div className="rise mt-9 flex flex-col gap-3 sm:flex-row" style={{ animationDelay: "200ms" }}>
             <Button onClick={onStart}>Start my Look Passport</Button>
             <Button variant="quiet" onClick={onDemo} disabled={demoState === "loading"}>
               {demoState === "loading" ? "Opening the demo" : "See Maya's demo"}
@@ -90,16 +91,18 @@ export function Landing({
                 f={{
                   holder: "Maya",
                   photoUrl: specimenPhoto,
-                  // Same values as Maya's demo passport (public/demo/manifest.json).
-                  hairHex: "#7A5A44",
-                  hairLength: "mid",
-                  browHex: "#564843",
-                  browPreset: "SoftArch1",
+                  // Maya's demo passport; the fallback mirrors public/demo/manifest.json for the first paint.
+                  hairHex: specimen?.hairHex ?? "#5C3420",
+                  hairLength: specimen?.hairLength ?? "mid",
+                  browHex: specimen?.brow.hex ?? "#564843",
+                  browPreset: specimen?.brow.preset ?? "SoftArch1",
+                  // A filled specimen is a saved one. Noon UTC: the same calendar day in every timezone we serve.
+                  savedAt: "2026-10-29T12:00:00.000Z",
                 }}
               />
             </Tilt>
           </div>
-          <p className="enter mt-6 text-center text-[13px] text-ink-soft" style={{ animationDelay: "650ms" }}>
+          <p className="rise mt-6 text-center text-[13px] text-ink-soft" style={{ animationDelay: "260ms" }}>
             A specimen page. Maya is an AI-generated persona.
           </p>
         </div>

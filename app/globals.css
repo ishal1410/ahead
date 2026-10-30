@@ -92,13 +92,13 @@ body {
 }
 .breathe { animation: breathe 1.8s ease-in-out infinite; }
 
-/* Hero choreography: each headline line rises out of a mask, then the rest settles in. */
-.line-mask { display: block; overflow: hidden; padding-bottom: 0.08em; margin-bottom: -0.08em; }
-@keyframes line-in {
-  from { opacity: 0; transform: translateY(70%); }
-  to { opacity: 1; transform: none; }
+/* Hero choreography: transform only. Primary content is never at opacity 0, so the
+   first paint already shows the headline, copy and CTAs; they just settle upward. */
+@keyframes rise {
+  from { transform: translateY(14px); }
+  to { transform: none; }
 }
-.line-in { display: block; animation: line-in 900ms var(--ease-calm) both; }
+.rise { animation: rise 700ms var(--ease-calm) both; }
 @keyframes enter {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: none; }
@@ -106,11 +106,11 @@ body {
 .enter { animation: enter 800ms var(--ease-calm) both; }
 
 /* The specimen passport is set down on the table: it arrives a touch rotated and settles. */
-.hero-object { --tilt: 0deg; animation: set-down 950ms var(--ease-calm) 150ms both; transform: rotate(var(--tilt)); }
+.hero-object { --tilt: 0deg; animation: set-down 950ms var(--ease-calm) both; transform: rotate(var(--tilt)); }
 @media (min-width: 768px) { .hero-object { --tilt: 1.5deg; } }
 @keyframes set-down {
-  from { opacity: 0; transform: translateY(28px) rotate(calc(var(--tilt) + 2.5deg)); }
-  to { opacity: 1; transform: rotate(var(--tilt)); }
+  from { transform: translateY(20px) rotate(calc(var(--tilt) + 2.5deg)); }
+  to { transform: rotate(var(--tilt)); }
 }
 
 /* Tactile controls: a 1px lift on hover, a firm press. Transform + opacity only. */
@@ -168,13 +168,14 @@ dialog::backdrop {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *, *::before, *::after, ::backdrop {
     animation-duration: 0.01ms !important;
     animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
   .shimmer::before { display: none; }
+  dialog[open], dialog[open]::backdrop { animation: none !important; }
   .press:not(:disabled):hover, .press:not(:disabled):active { transform: none; }
 }
 

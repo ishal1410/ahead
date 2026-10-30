@@ -16,7 +16,9 @@ function isYouCamResult(u: unknown): u is string {
   if (typeof u !== "string") return false;
   try {
     const url = new URL(u);
-    return url.protocol === "https:" && url.hostname.endsWith(".amazonaws.com");
+    // Pinned to YouCam's result bucket host (observed on every live result), not
+    // any S3 host, so callers can't route their own images through our key.
+    return url.protocol === "https:" && url.hostname === "yce-us.s3-accelerate.amazonaws.com";
   } catch {
     return false;
   }
@@ -25,7 +27,9 @@ function isYouCamResult(u: unknown): u is string {
 function parseSource(raw: unknown): Source | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
-  if (typeof r.fileId === "string" && /^[\w.-]{1,256}$/.test(r.fileId)) return { fileId: r.fileId };
+  // YouCam file ids are standard base64: '+' and '/' are common (6 of 8 real
+  // uploads in QA), so a word-char-only pattern rejected most photos.
+  if (typeof r.fileId === "string" && /^[A-Za-z0-9+/=_.-]{1,512}$/.test(r.fileId)) return { fileId: r.fileId };
   if (isYouCamResult(r.url)) return { url: r.url };
   return null;
 }

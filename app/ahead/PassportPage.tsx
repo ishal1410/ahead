@@ -39,24 +39,37 @@ export function PassportPage({ f, compact = false }: { f: PassportFields; compac
       </header>
 
       <div className={`grid gap-5 p-5 sm:p-6 ${compact ? "grid-cols-[88px_1fr]" : "grid-cols-[minmax(84px,120px)_1fr]"}`}>
-        <div className="aspect-[3/4] overflow-hidden rounded-[14px] bg-tint ring-1 ring-rule">
-          {f.photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={f.photoUrl} alt={`Baseline photo of ${f.holder}`} className="size-full object-cover" />
-          ) : (
-            <span className="grid size-full place-items-center px-2 text-center text-[12px] text-ink-soft">Your photo</span>
+        <div className="relative self-start">
+          <div className="aspect-[3/4] overflow-hidden rounded-[14px] bg-tint ring-1 ring-rule">
+            {f.photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={f.photoUrl} alt={`Baseline photo of ${f.holder}`} className="size-full object-cover" />
+            ) : (
+              <span className="grid size-full place-items-center px-2 text-center text-[12px] text-ink-soft">Your photo</span>
+            )}
+          </div>
+          {/* Stamped across the photo corner, like a real visa stamp: never over a field value or the MRZ. */}
+          {saved && (
+            <div aria-hidden className="stamp pointer-events-none absolute -bottom-4 -right-1 grid size-[64px] place-items-center rounded-full border-2 border-cover bg-surface/70 text-center text-cover opacity-90 sm:size-[72px]">
+              <span className="font-display text-[13px] leading-tight">
+                Saved
+                <br />
+                {/* Local date, so the stamp agrees with the "Saved" field (toISOString is UTC). */}
+                <span className="font-mono text-[9px]">{saved.toLocaleDateString("en-CA")}</span>
+              </span>
+            </div>
           )}
         </div>
 
         <dl className="grid content-start gap-x-6 gap-y-4 sm:grid-cols-2">
           <Field label="Holder">{f.holder}</Field>
-          <Field label="Saved">{saved ? saved.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "Not yet"}</Field>
+          <Field label="Saved">{saved ? saved.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }) : "Not yet"}</Field>
           <Field label="Hair colour">
             <Swatch hex={f.hairHex} label={f.hairHex ? shadeFamily(f.hairHex) : "Tap your hair"} size="sm" />
           </Field>
           <Field label="Hair length">{f.hairLength ? lengthName[f.hairLength] : "Not yet"}</Field>
           <Field label="Brow colour">
-            <Swatch hex={f.browHex} label="Brow" size="sm" />
+            <Swatch hex={f.browHex} label={f.browHex ? shadeFamily(f.browHex) : "Tap your brow"} size="sm" />
           </Field>
           <Field label="Brow shape">{f.browPreset ? browLabel(f.browPreset) : "Not yet"}</Field>
         </dl>
@@ -67,16 +80,6 @@ export function PassportPage({ f, compact = false }: { f: PassportFields; compac
         <div>{l2}</div>
       </div>
 
-      {saved && (
-        <div aria-hidden className="stamp pointer-events-none absolute bottom-5 right-4 grid sm:right-6 size-[84px] place-items-center rounded-full border-2 border-cover text-center text-cover opacity-90 sm:right-7 sm:size-[96px]">
-          <span className="font-display text-[15px] leading-tight">
-            Saved
-            <br />
-            {/* Local date, so the stamp agrees with the "Saved" field (toISOString is UTC). */}
-            <span className="font-mono text-[10px]">{saved.toLocaleDateString("en-CA")}</span>
-          </span>
-        </div>
-      )}
     </article>
   );
 }

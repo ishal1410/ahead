@@ -1,25 +1,21 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { BROW_PRESETS, type Length } from "@/lib/catalog";
-import { LENGTHS, type BrowPresetId } from "@/lib/passport";
+import { LENGTHS, type BrowPresetId, type Draft } from "@/lib/passport";
+import { CappedError, StaleError } from "@/lib/render";
 import { samplePatch } from "@/lib/browser";
+import { HAIR_RING, suggestShade } from "@/lib/hairChart";
 import { PassportPage } from "./PassportPage";
-import { Button, Frame, PersonaNote } from "./ui";
+import { Button, Frame, PersonaNote, Photo, ViewToggle } from "./ui";
 import { PRIVACY } from "./Landing";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { motionTokens, springs, staggerChild, staggerParent } from "./motion";
 
-export interface Draft {
-  hairHex?: string;
-  browHex?: string;
-  hairLength?: Length;
-  browPreset?: BrowPresetId;
-  hairAt?: [number, number];
-  browAt?: [number, number];
-}
+export type { Draft };
 
-type Tile = { state: "idle" | "running" | "done" | "error"; url?: string; error?: string };
+type Tile = { state: "idle" | "running" | "done" | "error"; url?: string; error?: string; capped?: boolean };
 const lengthLabel: Record<Length, string> = { short: "Short", mid: "Shoulder", long: "Long" };
+const DEMO_PRIVACY = "This demo shows pre-rendered images of Maya. Nothing is uploaded and nothing is stored.";
 
 export function PassportStep({
   photoUrl,
@@ -28,6 +24,7 @@ export function PassportStep({
   draft,
   setDraft,
   renderBrow,
+  onDemo,
   onSave,
   savedAt,
   onDownload,
@@ -39,6 +36,7 @@ export function PassportStep({
   draft: Draft;
   setDraft: (d: Draft) => void;
   renderBrow: (preset: BrowPresetId, hex: string) => Promise<string>;
+  onDemo: () => void;
   onSave: (img: HTMLImageElement) => void;
   savedAt?: string;
   onDownload: () => void;
@@ -47,12 +45,15 @@ export function PassportStep({
   const imgRef = useRef<HTMLImageElement>(null);
   const [target, setTarget] = useState<"hair" | "brow">(draft.hairHex ? "brow" : "hair");
   const [tiles, setTiles] = useState<Record<string, Tile>>({});
+  const [closeUp, setCloseUp] = useState(true);
   const [sampleError, setSampleError] = useState<string>();
   const docRef = useRef<HTMLElement>(null);
 
-  // Saving stamps the page; bring it into view so the moment is seen.
+  // Saving stamps the page; bring it into view so the moment is seen. Only on a new
+  // save, not when the screen remounts with a passport that was saved earlier.
+  const savedOnMount = useRef(savedAt);
   useEffect(() => {
-    if (!savedAt) return;
+    if (!savedAt || savedAt === savedOnMount.current) return;
     const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     docRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "center" });
   }, [savedAt]);
@@ -66,7 +67,8 @@ export function PassportStep({
       const hex = samplePatch(img, fx, fy);
       setSampleError(undefined);
       if (target === "hair") {
-        setDraft({ ...draft, hairHex: hex, hairAt: [fx, fy] });
+        // A tap only suggests a ring shade; the person confirms it on the ring below.
+        setDraft({ ...draft, hairHex: suggestShade(hex).hex, hairAt: [fx, fy] });
         setTarget("brow");
       } else {
         setDraft({ ...draft, browHex: hex, browAt: [fx, fy] });
@@ -76,36 +78,46 @@ export function PassportStep({
     }
   }
 
+  async function renderTile(id: BrowPresetId, hex: string) {
+    setTiles((t) => ({ ...t, [id]: { state: "running" } }));
+    try {
+      const url = await renderBrow(id, hex);
+      setTiles((t) => ({ ...t, [id]: { state: "done", url } }));
+    } catch (err) {
+      if (err instanceof StaleError) return; // a newer session owns this screen now
+      const error = err instanceof Error ? err.message : "This one didn't render.";
+      setTiles((t) => ({ ...t, [id]: { state: "error", error, capped: err instanceof CappedError } }));
+    }
+  }
+
   async function drawBrows() {
     const hex = draft.browHex;
     if (!hex) return;
     setDraft({ ...draft, browPreset: undefined });
-    await Promise.all(
-      BROW_PRESETS.map(async (p) => {
-        setTiles((t) => ({ ...t, [p.id]: { state: "running" } }));
-        try {
-          const url = await renderBrow(p.id, hex);
-          setTiles((t) => ({ ...t, [p.id]: { state: "done", url } }));
-        } catch (err) {
-          setTiles((t) => ({ ...t, [p.id]: { state: "error", error: err instanceof Error ? err.message : "This one didn't render." } }));
-        }
-      }),
-    );
+    await Promise.all(BROW_PRESETS.map((p) => renderTile(p.id, hex)));
   }
 
-  async function retry(id: BrowPresetId) {
-    if (!draft.browHex) return;
-    setTiles((t) => ({ ...t, [id]: { state: "running" } }));
-    try {
-      const url = await renderBrow(id, draft.browHex);
-      setTiles((t) => ({ ...t, [id]: { state: "done", url } }));
-    } catch (err) {
-      setTiles((t) => ({ ...t, [id]: { state: "error", error: err instanceof Error ? err.message : "This one didn't render." } }));
-    }
+  // An image that fails to load can't be chosen: you can't judge brows you can't see.
+  function imageFailed(id: BrowPresetId) {
+    setTiles((t) => ({ ...t, [id]: { state: "error", error: "This image didn't load." } }));
+    if (draft.browPreset === id) setDraft({ ...draft, browPreset: undefined });
   }
 
-  const running = Object.values(tiles).filter((t) => t.state === "running").length;
-  const anyTiles = Object.keys(tiles).length > 0;
+  const list = Object.values(tiles);
+  const running = list.filter((t) => t.state === "running").length;
+  const failed = list.filter((t) => t.state === "error");
+  const done = list.filter((t) => t.state === "done").length;
+  const anyTiles = list.length > 0;
+  const firstError = failed[0]?.error;
+  const announce = running
+    ? `Drawing ${running} brow options`
+    : !anyTiles
+      ? ""
+      : failed.length === 0
+        ? "Brow options ready"
+        : done === 0
+          ? `None of the brow options rendered. ${firstError}`
+          : `${done} brow options ready. ${failed.length} didn't render. ${firstError}`;
   const ready = !!(draft.hairHex && draft.browHex && draft.hairLength && draft.browPreset);
   const marker = (at: [number, number] | undefined, label: string) =>
     at && (
@@ -128,10 +140,12 @@ export function PassportStep({
   return (
     <main id="main" className="mx-auto max-w-6xl px-4 py-10 sm:px-8 lg:py-14">
       <h1 tabIndex={-1} data-step-heading className="font-display text-4xl leading-tight tracking-[-0.01em] outline-none sm:text-5xl">
-        Your Look Passport
+        {persona ? `${persona}'s Look Passport` : "Your Look Passport"}
       </h1>
       <p className="mt-3 max-w-[56ch] text-lg leading-relaxed text-ink-soft">
-        Record your colours and your brow shape. This page is what every wig and brow is matched to later.
+        {persona
+          ? `${persona} tapped her hair and her brow; the page shows what was measured. Next, find her brow shape below and save the page.`
+          : "Record your colours and your brow shape. This page is what every wig and brow is matched to later."}
       </p>
       {persona && <div className="mt-3"><PersonaNote name={persona} /></div>}
 
@@ -139,9 +153,9 @@ export function PassportStep({
         {/* Sampler */}
         <section aria-labelledby="sample-h">
           <h2 id="sample-h" className="text-xl font-medium">
-            Tap your hair, then your brow
+            {persona ? "Measured from her photo" : "Tap your hair, then your brow"}
           </h2>
-          <div role="group" aria-label="What are you tapping?" className="mt-4 inline-flex rounded-full bg-tint p-1">
+          <div role="group" aria-label={persona ? "Re-measure" : "What are you tapping?"} className="mt-4 inline-flex rounded-full bg-tint p-1">
             {(["hair", "brow"] as const).map((t) => (
               <button
                 key={t}
@@ -161,7 +175,7 @@ export function PassportStep({
               <img
                 ref={imgRef}
                 src={photoUrl}
-                alt={`Photo of ${holder}. Tap to sample your ${target}.`}
+                alt={`Photo of ${holder}. Tap to sample the ${target}.`}
                 onClick={tap}
                 crossOrigin="anonymous"
                 className="block max-h-[520px] w-auto max-w-full cursor-crosshair rounded-[14px]"
@@ -171,15 +185,40 @@ export function PassportStep({
             </div>
           </Frame>
           <p role="status" aria-live="polite" className={`mt-3 min-h-6 text-[14px] ${sampleError ? "text-danger" : "text-ink-soft"}`}>
-            {sampleError ?? (target === "hair" ? "Tap a mid-length strand, away from shine." : "Tap the fullest part of one brow.")}
+            {sampleError ??
+              (persona
+                ? "Already measured. Tap the photo only if you want to measure again."
+                : target === "hair"
+                  ? "Tap a mid-length strand, away from shine."
+                  : "Tap the fullest part of one brow.")}
           </p>
-          <details className="mt-2 text-[14px]">
-            <summary className="cursor-pointer text-ink-soft">Can't tap the photo? Choose the colours instead</summary>
+          <fieldset className="mt-5">
+            <legend className="text-[15px] font-medium">Confirm your hair shade on the colour ring</legend>
+            <p className="mt-1 max-w-[52ch] text-[13px] leading-relaxed text-ink-soft">
+              A photo can&apos;t measure hair colour exactly; light changes it. {draft.hairHex ? "We marked the shade closest to your tap." : "Tap your hair, or pick a shade."} Choose the one that matches your hair in daylight.
+            </p>
+            <div role="radiogroup" aria-label="Hair colour ring" className="mt-3 flex flex-wrap gap-2">
+              {HAIR_RING.map((s) => {
+                const on = draft.hairHex === s.hex;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => setDraft({ ...draft, hairHex: s.hex })}
+                    className={`flex items-center gap-2 rounded-full border py-1.5 pl-1.5 pr-3 text-[13px] transition-colors ${on ? "border-cover bg-tint text-ink" : "border-rule text-ink-soft hover:border-ink-soft"}`}
+                  >
+                    <span aria-hidden className={`size-6 rounded-full ring-1 ring-black/10 ${on ? "ring-2 ring-cover ring-offset-2 ring-offset-surface" : ""}`} style={{ background: s.hex }} />
+                    {s.name}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+          <details className="mt-4 text-[14px]">
+            <summary className="cursor-pointer text-ink-soft">Can&apos;t tap the photo? Choose your brow colour instead</summary>
             <div className="mt-3 flex flex-wrap gap-6">
-              <label className="flex items-center gap-3">
-                <input type="color" value={draft.hairHex ?? "#4a3022"} onChange={(e) => setDraft({ ...draft, hairHex: e.target.value.toUpperCase() })} className="size-10 cursor-pointer rounded-full" />
-                Hair colour
-              </label>
               <label className="flex items-center gap-3">
                 <input type="color" value={draft.browHex ?? "#3a2a20"} onChange={(e) => setDraft({ ...draft, browHex: e.target.value.toUpperCase() })} className="size-10 cursor-pointer rounded-full" />
                 Brow colour
@@ -223,19 +262,20 @@ export function PassportStep({
       {/* Brow match */}
       <section aria-labelledby="brow-h" className="mt-16 border-t border-rule pt-12">
         <h2 id="brow-h" className="font-display text-3xl tracking-[-0.01em] sm:text-4xl">
-          Which brows are yours?
+          {persona ? `Which brows are ${persona}'s?` : "Which brows are yours?"}
         </h2>
         <p className="mt-3 max-w-[60ch] leading-relaxed text-ink-soft">
-          We draw three shapes on your photo in the brow colour you tapped. Choose the one where nothing seems to have changed. That one is your shape.
+          We draw three shapes on {persona ? "her" : "your"} photo in the brow colour {persona ? "she" : "you"} tapped. Choose the one where nothing seems to have changed. That one is {persona ? "her" : "your"} shape.
         </p>
         <div className="mt-6 flex flex-wrap items-center gap-4">
           <Button onClick={drawBrows} disabled={!draft.browHex || running > 0}>
-            {anyTiles ? "Draw them again" : "Show my brow options"}
+            {anyTiles ? "Draw them again" : persona ? "Show her brow options" : "Show my brow options"}
           </Button>
           {!draft.browHex && <span className="text-[14px] text-ink-soft">Tap your brow first.</span>}
+          {anyTiles && <ViewToggle label="Brow view" closeUp={closeUp} onChange={setCloseUp} />}
         </div>
         <p aria-live="polite" className="sr-only">
-          {running > 0 ? `Drawing ${running} brow options` : anyTiles ? "Brow options ready" : ""}
+          {announce}
         </p>
 
         {anyTiles && (
@@ -247,7 +287,7 @@ export function PassportStep({
                 <motion.div
                   key={p.id}
                   variants={staggerChild}
-                  className={`group relative rounded-[14px] bg-surface p-1 ring-1 transition-[box-shadow,transform] duration-300 ease-calm sm:rounded-[20px] sm:p-1.5 ${chosen ? "shadow-[var(--shadow)] ring-2 ring-cover" : "ring-rule hover:ring-ink-soft/50 hover:shadow-[var(--shadow)]"}`}
+                  className={`group relative min-w-0 rounded-[14px] bg-surface p-1 ring-1 transition-[box-shadow,transform] duration-300 ease-calm sm:rounded-[20px] sm:p-1.5 ${chosen ? "shadow-[var(--shadow)] ring-2 ring-cover" : "ring-rule hover:ring-ink-soft/50 hover:shadow-[var(--shadow)]"}`}
                 >
                   {chosen && (
                     <motion.span
@@ -261,17 +301,26 @@ export function PassportStep({
                       </svg>
                     </motion.span>
                   )}
-                  <div className={`relative aspect-[3/4] overflow-hidden rounded-[10px] bg-tint sm:rounded-[14px] ${t.state === "running" || t.state === "idle" ? "shimmer" : ""}`}>
+                  <div className={`relative overflow-hidden rounded-[10px] bg-tint sm:rounded-[14px] ${closeUp ? "aspect-[4/3]" : "aspect-[3/4]"} ${t.state === "running" || t.state === "idle" ? "shimmer" : ""}`}>
                     {t.state === "done" && t.url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={t.url} alt={`${p.label} brows drawn on your photo`} className="develop size-full object-cover" />
+                      // develop lives on the wrapper: its transform fill would override the close-up zoom.
+                      <div key={t.url} className="develop size-full">
+                        <Photo src={t.url} alt={`${p.label} brows drawn on the photo${closeUp ? ", close-up of the brows" : ""}`} closeUp={closeUp} onFail={() => imageFailed(p.id)} />
+                      </div>
                     ) : t.state === "error" ? (
-                      <div className="grid size-full place-items-center p-4 text-center">
-                        <div>
-                          <p className="text-[14px] text-danger">{t.error}</p>
-                          <Button variant="quiet" className="mt-3" onClick={() => retry(p.id)}>
-                            Try again
-                          </Button>
+                      // Kept short so it fits a 90px tile at 320px; the full reason is read out and shown below.
+                      <div className="grid size-full place-items-center p-1.5 text-center">
+                        <div className="min-w-0">
+                          <p className="text-[12px] leading-snug text-danger sm:text-[14px]">Didn&apos;t render</p>
+                          {t.capped ? (
+                            <button type="button" onClick={onDemo} className="mt-1 min-h-11 cursor-pointer rounded-full px-2 text-[12px] font-medium underline underline-offset-4 sm:text-[14px]">
+                              See Maya&apos;s demo
+                            </button>
+                          ) : (
+                            <button type="button" onClick={() => draft.browHex && renderTile(p.id, draft.browHex)} className="mt-1 min-h-11 cursor-pointer rounded-full px-2 text-[12px] font-medium underline underline-offset-4 sm:text-[14px]">
+                              Try again
+                            </button>
+                          )}
                         </div>
                       </div>
                     ) : (
@@ -296,26 +345,41 @@ export function PassportStep({
             })}
           </motion.div>
         )}
+        {firstError && !running && (
+          <p className="mt-4 max-w-[60ch] text-[14px] leading-relaxed text-danger">{firstError}</p>
+        )}
       </section>
 
       <section aria-label="Save" className="mt-14 flex flex-col gap-4 rounded-[20px] bg-tint/70 p-6 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-[56ch] text-[14px] leading-relaxed text-ink-soft">
-          {savedAt ? (persona ? `Saved for this demo. ${persona}'s passport is not stored in your browser.` : "Saved. Your passport is kept only in this browser. Download a copy to keep it somewhere safe.") : ready ? "Everything is recorded." : "To save, record your hair colour, brow colour, hair length and brow shape."}
-          <span className="mt-1 block">{PRIVACY}</span>
+          {savedAt ? (persona ? `Saved for this demo. ${persona}'s passport is not stored in your browser.` : "Saved. Your passport is kept only in this browser. Download a copy to keep it somewhere safe.") : ready ? "Everything is recorded." : "To save, record the hair colour, brow colour, hair length and brow shape."}
+          <span className="mt-1 block">{persona ? DEMO_PRIVACY : PRIVACY}</span>
         </p>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          {savedAt ? (
-            <div className="enter flex flex-col gap-3 sm:flex-row" style={{ animationDelay: "350ms" }}>
+        {!savedAt && (
+          <Button disabled={!ready} onClick={() => imgRef.current && onSave(imgRef.current)}>
+            Save {persona ? "the" : "my"} passport
+          </Button>
+        )}
+      </section>
+
+      {/* After saving, the next step stays on screen while the stamp is admired. */}
+      <AnimatePresence>
+        {savedAt && (
+          <motion.div
+            key="next"
+            initial={{ y: motionTokens.distance.lg }}
+            animate={{ y: 0, transition: { duration: motionTokens.duration.normal, ease: motionTokens.easing.smooth } }}
+            exit={{ opacity: 0, transition: { duration: motionTokens.duration.fast } }}
+            className="no-print sticky bottom-3 z-20 mt-6 flex flex-col gap-3 rounded-[20px] bg-surface/95 p-3 shadow-[var(--shadow)] ring-1 ring-rule/70 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:pl-6"
+          >
+            <p className="hidden text-[14px] text-ink-soft sm:block">Passport saved. Next: see {persona ? "her" : "your"} brows and wigs.</p>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
               <Button variant="quiet" onClick={onDownload}>Download passport (JSON)</Button>
               <Button onClick={onContinue}>Continue to rebuild</Button>
             </div>
-          ) : (
-            <Button disabled={!ready} onClick={() => imgRef.current && onSave(imgRef.current)}>
-              Save my passport
-            </Button>
-          )}
-        </div>
-      </section>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }

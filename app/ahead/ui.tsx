@@ -1,6 +1,7 @@
 // Small shared pieces. Shape rule: interactive controls are full pills, framed
 // surfaces are 20px, photos are 14px.
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+"use client";
+import { useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 
 type Variant = "primary" | "quiet";
 
@@ -40,5 +41,72 @@ export function PersonaNote({ name }: { name: string }) {
     <p className="text-[13px] text-ink-soft">
       {name} is an AI-generated persona, preparing for treatment.
     </p>
+  );
+}
+
+// The brow close-up window, shared by the brow options, the Rebuild stage and the
+// Match Card. Brows sit roughly 30-38% down these head-and-shoulders portraits.
+export const BROW_CROP = { y: 36, scale: 1.75 } as const;
+
+/**
+ * A photo that fills its box. `closeUp` zooms into the brow window (transform only,
+ * so it animates smoothly); a failed load shows a calm placeholder, never a broken icon.
+ */
+export function Photo({
+  src,
+  alt,
+  closeUp = false,
+  className = "",
+  onFail,
+}: {
+  src: string;
+  alt: string;
+  closeUp?: boolean;
+  className?: string;
+  onFail?: () => void;
+}) {
+  const [failed, setFailed] = useState<string>();
+  if (failed === src) {
+    return (
+      <span role="img" aria-label={`${alt} (image unavailable)`} className={`grid size-full place-items-center bg-tint p-2 text-center text-[12px] text-ink-soft ${className}`}>
+        Image unavailable
+      </span>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      onError={() => {
+        setFailed(src);
+        onFail?.();
+      }}
+      className={`size-full object-cover transition-transform duration-500 ease-calm ${className}`}
+      style={{
+        objectPosition: `50% ${BROW_CROP.y}%`,
+        transformOrigin: `50% ${BROW_CROP.y}%`,
+        transform: closeUp ? `scale(${BROW_CROP.scale})` : undefined,
+      }}
+    />
+  );
+}
+
+/** Close-up / Full face switch for brow views. */
+export function ViewToggle({ closeUp, onChange, label }: { closeUp: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <div role="group" aria-label={label} className="inline-flex rounded-full bg-tint p-1 text-[14px]">
+      {[true, false].map((v) => (
+        <button
+          key={String(v)}
+          type="button"
+          aria-pressed={closeUp === v}
+          onClick={() => onChange(v)}
+          className={`min-h-10 cursor-pointer rounded-full px-4 transition-colors duration-300 ease-calm ${closeUp === v ? "bg-surface text-ink shadow-sm" : "text-ink-soft hover:text-ink"}`}
+        >
+          {v ? "Close-up" : "Full face"}
+        </button>
+      ))}
+    </div>
   );
 }

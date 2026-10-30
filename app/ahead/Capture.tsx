@@ -10,7 +10,8 @@ const tips = [
   "Even light from the front, no strong shadows",
 ];
 
-export function Capture({ onConfirm, busy, error }: { onConfirm: (url: string) => void; busy: boolean; error?: string }) {
+// note: why the person was sent back here (e.g. no face found in the last photo).
+export function Capture({ onConfirm, busy, error, note }: { onConfirm: (url: string) => void; busy: boolean; error?: string; note?: string }) {
   const [file, setFile] = useState<File | null>(null);
   const [url, setUrl] = useState<string>();
   const [localError, setLocalError] = useState<string>();
@@ -36,6 +37,12 @@ export function Capture({ onConfirm, busy, error }: { onConfirm: (url: string) =
         <p className="mt-4 max-w-[44ch] text-lg leading-relaxed text-ink-soft">
           This is the reference everything else is matched to. A phone selfie is fine.
         </p>
+        {note && (
+          <div role="alert" className="mt-6 max-w-[52ch] rounded-[20px] bg-tint p-4 text-[15px] leading-relaxed">
+            <p className="font-medium">That photo didn&apos;t work for the try-on.</p>
+            <p className="mt-1 text-ink-soft">{note}</p>
+          </div>
+        )}
         <ul className="mt-8 grid gap-3">
           {tips.map((t) => (
             <li key={t} className="flex items-start gap-3 leading-relaxed">
@@ -44,10 +51,13 @@ export function Capture({ onConfirm, busy, error }: { onConfirm: (url: string) =
             </li>
           ))}
         </ul>
-        <p className="mt-10 max-w-[52ch] text-[14px] leading-relaxed text-ink-soft">{PRIVACY}</p>
+        <p className="mt-6 max-w-[52ch] text-[14px] leading-relaxed text-ink-soft">
+          The try-on needs to find one clear, front-facing face. If it can&apos;t, we&apos;ll bring you back here to choose another photo.
+        </p>
+        <p className="mt-4 max-w-[52ch] text-[14px] leading-relaxed text-ink-soft">{PRIVACY}</p>
       </div>
 
-      <Frame className="p-2">
+      <Frame className="self-start p-2">
         <div className="flex min-h-[420px] flex-col items-center justify-center gap-6 rounded-[14px] bg-tint/60 p-6 text-center">
           {url ? (
             // eslint-disable-next-line @next/next/no-img-element

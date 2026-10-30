@@ -38,7 +38,9 @@ describe("renderLive", () => {
   it("gives up after the timeout", async () => {
     const running = Array.from({ length: 5 }, () => reply(200, { state: "running" }));
     const { fn } = fakeFetch(reply(202, { taskId: "t1" }), ...running);
-    await expect(renderLive(job, { fetchFn: fn, sleep: noSleep, intervalMs: 2000, timeoutMs: 10000 })).rejects.toThrow(/longer than usual/);
+    let t = 0;
+    const tick = async (ms: number) => void (t += ms);
+    await expect(renderLive(job, { fetchFn: fn, sleep: tick, now: () => t, intervalMs: 2000, timeoutMs: 10000 })).rejects.toThrow(/longer than usual/);
   });
 });
 
@@ -46,11 +48,11 @@ describe("renderDemo", () => {
   const m: DemoManifest = {
     persona: { name: "Maya", label: "AI-generated persona", photo: "/demo/p.jpg" },
     passport: { hairHex: "#5A3A22", hairLength: "mid", brow: { preset: "SoftArch1", hex: "#3B2A1E" } },
-    renders: { brow: { SoftArch1: "/demo/b.jpg" }, wig: { w1: "/demo/w1.jpg" }, hat: {}, browOnWig: "/demo/bw.jpg" },
+    renders: { brow: { SoftArch1: "/demo/b.jpg" }, wig: { w1: "/demo/w1.jpg" }, hat: {}, browOnWig: { w1: "/demo/bw.jpg" } },
   };
   it("serves renders from the manifest and prefers brows-on-wig when asked", async () => {
     expect(await renderDemo(m, { feature: "brow", brow: { preset: "SoftArch1", hex: "#000000" } }, noSleep)).toBe("/demo/b.jpg");
-    expect(await renderDemo(m, { feature: "brow", brow: { preset: "SoftArch1", hex: "#000000" }, onWig: true }, noSleep)).toBe("/demo/bw.jpg");
+    expect(await renderDemo(m, { feature: "brow", brow: { preset: "SoftArch1", hex: "#000000" }, wigId: "w1" }, noSleep)).toBe("/demo/bw.jpg");
     expect(await renderDemo(m, { feature: "wig", refId: "w1" }, noSleep)).toBe("/demo/w1.jpg");
     await expect(renderDemo(m, { feature: "hat", refId: "nope" }, noSleep)).rejects.toThrow();
   });
@@ -78,9 +80,9 @@ describe("passport", () => {
     expect(a.startsWith("P<AHD<HAIR<5A3A22<MID")).toBe(true);
     expect(b.startsWith("BROW<SOFTARCH1<3B2A1E<T0<I80")).toBe(true);
   });
-  it("names broad shade families", () => {
+  it("names shades with the colour ring's vocabulary", () => {
     expect(shadeFamily("#151210")).toBe("Soft black");
-    expect(shadeFamily("#D8B878")).toBe("Blonde");
-    expect(shadeFamily("#5A3A22")).toMatch(/brown|auburn/i);
+    expect(shadeFamily("#D8B878")).toBe("Honey blonde");
+    expect(shadeFamily("#5C3420")).toBe("Chestnut");
   });
 });

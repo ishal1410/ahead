@@ -19,17 +19,18 @@ export interface HatRef {
   file: string;
 }
 
-// hex values come from scripts/sample-wig-hex.mjs (lit mid-tones of the hair, comparable to a tap).
+// shade + hex are the wig's shade on Ahead's colour ring (lib/hairChart.ts), assigned
+// by eye like a retailer's colour code. Photos can't measure hair colour reliably.
 export const WIGS: WigRef[] = [
-  { id: "soft-chestnut", label: "Soft chestnut waves with warm highlights", shade: "Light chestnut", hex: "#7F4E33", length: "mid", file: "/refs/wig-soft-chestnut.jpg" },
-  { id: "chestnut-wave", label: "Shoulder-length chestnut waves", shade: "Chestnut brown", hex: "#452617", length: "mid", file: "/refs/wig-chestnut-wave.jpg" },
-  { id: "espresso-straight", label: "Shoulder-length straight espresso", shade: "Dark brown", hex: "#4C352C", length: "mid", file: "/refs/wig-espresso-straight.jpg" },
-  { id: "caramel-bob", label: "Caramel bob with fringe", shade: "Medium brown", hex: "#663D2C", length: "short", file: "/refs/wig-caramel-bob.jpg" },
-  { id: "auburn-long", label: "Long layered auburn", shade: "Auburn", hex: "#5E210F", length: "long", file: "/refs/wig-auburn-long.jpg" },
-  { id: "black-pixie", label: "Soft black pixie", shade: "Soft black", hex: "#221F1D", length: "short", file: "/refs/wig-black-pixie.jpg" },
-  { id: "ash-blonde-bob", label: "Light ash brown bob", shade: "Light ash brown", hex: "#92725E", length: "short", file: "/refs/wig-ash-blonde-bob.jpg" },
-  { id: "honey-long", label: "Long straight honey blonde", shade: "Honey blonde", hex: "#D2A278", length: "long", file: "/refs/wig-honey-long.jpg" },
-  { id: "silver-short", label: "Short layered silver", shade: "Silver grey", hex: "#968C87", length: "short", file: "/refs/wig-silver-short.jpg" },
+  { id: "soft-chestnut", label: "Soft chestnut waves with warm highlights", shade: "Light chestnut", hex: "#7E5233", length: "mid", file: "/refs/wig-soft-chestnut.jpg" },
+  { id: "chestnut-wave", label: "Shoulder-length chestnut waves", shade: "Chestnut", hex: "#5C3420", length: "mid", file: "/refs/wig-chestnut-wave.jpg" },
+  { id: "espresso-straight", label: "Shoulder-length straight espresso", shade: "Espresso", hex: "#2E1E17", length: "mid", file: "/refs/wig-espresso-straight.jpg" },
+  { id: "caramel-bob", label: "Caramel bob with fringe", shade: "Medium brown", hex: "#5E4231", length: "short", file: "/refs/wig-caramel-bob.jpg" },
+  { id: "auburn-long", label: "Long layered auburn", shade: "Auburn", hex: "#7A2E17", length: "long", file: "/refs/wig-auburn-long.jpg" },
+  { id: "black-pixie", label: "Soft black pixie", shade: "Soft black", hex: "#1E1A18", length: "short", file: "/refs/wig-black-pixie.jpg" },
+  { id: "ash-blonde-bob", label: "Light ash brown bob", shade: "Light ash brown", hex: "#8E7B6A", length: "short", file: "/refs/wig-ash-blonde-bob.jpg" },
+  { id: "honey-long", label: "Long straight honey blonde", shade: "Honey blonde", hex: "#C2925F", length: "long", file: "/refs/wig-honey-long.jpg" },
+  { id: "silver-short", label: "Short layered silver", shade: "Silver grey", hex: "#A9A4A1", length: "short", file: "/refs/wig-silver-short.jpg" },
 ];
 
 // No hats: the hat API returns a generated full-body fashion scene, not a head try-on.

@@ -5,7 +5,8 @@
     "photo": "/demo/maya.jpg"
   },
   "passport": {
-    "hairHex": "#7A5A44",
+    "hairHex": "#5C3420",
+    "hairShade": "chestnut",
     "hairLength": "mid",
     "brow": {
       "preset": "SoftArch1",
@@ -32,6 +33,16 @@
       "silver-short": "/demo/wig-silver-short.jpg"
     },
     "hat": {},
-    "browOnWig": "/demo/brow-on-wig.jpg"
+    "browOnWig": {
+      "chestnut-wave": "/demo/brow-on-wig-chestnut-wave.jpg",
+      "caramel-bob": "/demo/brow-on-wig-caramel-bob.jpg",
+      "soft-chestnut": "/demo/brow-on-wig-soft-chestnut.jpg",
+      "auburn-long": "/demo/brow-on-wig-auburn-long.jpg",
+      "espresso-straight": "/demo/brow-on-wig-espresso-straight.jpg",
+      "black-pixie": "/demo/brow-on-wig-black-pixie.jpg",
+      "ash-blonde-bob": "/demo/brow-on-wig-ash-blonde-bob.jpg",
+      "honey-long": "/demo/brow-on-wig-honey-long.jpg",
+      "silver-short": "/demo/brow-on-wig-silver-short.jpg"
+    }
   }
 }

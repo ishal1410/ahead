@@ -88,11 +88,27 @@ for (const job of process.argv.slice(2)) {
   const [kind, arg] = job.split(":");
   try {
     if (kind === "sample") {
-      // Points chosen by eye on maya.jpg: lit hair beside the cheek, and the fullest part of her left brow.
-      const hairHex = await samplePatch(PHOTO, 0.17, 0.45);
+      // Brow colour is tapped (fullest part of her left brow). Hair is NOT taken
+      // from a tap: Maya confirms her shade on the colour ring (lib/hairChart.ts),
+      // because taps on her side-lit hair ranged from #946F50 to #130801.
       const browHex = await samplePatch(PHOTO, 0.40, 0.345, 4);
-      m.passport = { hairHex, hairLength: "mid", brow: { preset: "SoftArch1", hex: browHex, thickness: 0, intensity: 80 } };
-      console.log("sampled", hairHex, browHex);
+      const hairHex = "#5C3420"; // ring shade "chestnut"
+      m.passport = { hairHex, hairShade: "chestnut", hairLength: "mid", brow: { preset: "SoftArch1", hex: browHex, thickness: 0, intensity: 80 } };
+      console.log("passport", hairHex, browHex);
+    } else if (kind === "wigbrow") {
+      // Fresh wig render, then the saved brows drawn on THAT render, so every
+      // wig's "brows on your wig" view is real (one shared image lied for 8 of 9).
+      const ref = await upload(`public/refs/wig-${arg}.jpg`);
+      const w = await run("wig", { src_file_id: await src(), ref_file_id: ref }, `wig-${arg}.jpg`);
+      m.renders.wig[arg] = w.local;
+      const b = m.passport.brow;
+      const r = await run("brow", {
+        src_file_url: w.url, version: "1.0",
+        effects: [{ category: "eyebrows", pattern: { type: "shape", name: b.preset, curvature: 0, thickness: b.thickness, definition: 60 },
+          palettes: [{ color: b.hex, colorIntensity: b.intensity, texture: "matte" }] }],
+      }, `brow-on-wig-${arg}.jpg`);
+      if (typeof m.renders.browOnWig !== "object" || m.renders.browOnWig === null) m.renders.browOnWig = {};
+      m.renders.browOnWig[arg] = r.local;
     } else if (kind === "brow") {
       const b = m.passport.brow;
       const r = await run("brow", {

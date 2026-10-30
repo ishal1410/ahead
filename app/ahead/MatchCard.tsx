@@ -2,9 +2,10 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import type { HatRef, WigRef } from "@/lib/catalog";
-import { browLabel, qrPayload, shadeFamily, type Passport } from "@/lib/passport";
+import { browLabel, qrPayload, shadeFamily, wigShade, type Passport } from "@/lib/passport";
+import { isExpired } from "@/lib/render";
 import type { Look } from "./Rebuild";
-import { Button } from "./ui";
+import { Button, Photo } from "./ui";
 import { motion } from "motion/react";
 import { motionTokens, staggerChild, staggerParent } from "./motion";
 
@@ -17,11 +18,24 @@ const photo = {
 
 const lengthName = { short: "Short", mid: "Shoulder length", long: "Long" } as const;
 
+function Dot({ hex }: { hex: string }) {
+  return <span aria-hidden className="inline-block size-3.5 shrink-0 rounded-full align-middle ring-1 ring-black/10" style={{ background: hex }} />;
+}
+
+function Group({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <motion.div variants={staggerParent}>
+      <motion.h3 variants={piece} className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-soft print:text-[9px]">{title}</motion.h3>
+      <dl className="mt-1 divide-y divide-rule/70 print:mt-0">{children}</dl>
+    </motion.div>
+  );
+}
+
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <motion.div variants={piece} className="grid grid-cols-[7.5rem_1fr] gap-3 py-2.5 print:grid-cols-[6rem_1fr] print:py-1">
-      <dt className="text-[13px] text-ink-soft">{label}</dt>
-      <dd className="text-[15px]">{children}</dd>
+    <motion.div variants={piece} className="grid grid-cols-[7.5rem_1fr] gap-3 py-2.5 print:grid-cols-[5.5rem_1fr] print:gap-2 print:py-[3px]">
+      <dt className="text-[13px] text-ink-soft print:text-[10.5px]">{label}</dt>
+      <dd className="text-[15px] print:text-[11.5px]">{children}</dd>
     </motion.div>
   );
 }
@@ -46,8 +60,12 @@ export function MatchCard({
   onBack: () => void;
 }) {
   const [qr, setQr] = useState<string>();
-  const wig = look.wig && wigs.find((w) => w.id === look.wig!.id);
+  // Expired signed URLs are never printed as broken images.
+  const lookWig = look.wig && !isExpired(look.wig.expiresAt) ? look.wig : undefined;
+  const lookBrow = look.brow && !isExpired(look.brow.expiresAt) && (!look.brow.wigId || look.brow.wigId === lookWig?.id) ? look.brow : undefined;
+  const wig = lookWig && wigs.find((w) => w.id === lookWig.id);
   const hat = look.hat && hats.find((h) => h.id === look.hat!.id);
+  const whose = persona ? `${holder}'s` : "your";
 
   useEffect(() => {
     QRCode.toDataURL(qrPayload(passport), { margin: 1, width: 360, errorCorrectionLevel: "M", color: { dark: "#1c2420", light: "#ffffff" } })
@@ -72,25 +90,26 @@ export function MatchCard({
         </div>
       </div>
 
-      <motion.article variants={staggerParent} initial="hidden" animate="visible" aria-label="Match Card" className="print-area guilloche mx-auto mt-10 max-w-[620px] overflow-hidden rounded-[20px] shadow-[var(--shadow)] ring-1 ring-rule/70">
+      <motion.article variants={staggerParent} initial="hidden" animate="visible" aria-label="Match Card" className="print-area guilloche mx-auto mt-10 print:mt-0 max-w-[620px] overflow-hidden rounded-[20px] shadow-[var(--shadow)] ring-1 ring-rule/70">
         <motion.header variants={piece} className="bg-cover px-6 py-5 text-on-cover print:px-5 print:py-3">
           <p className="text-[13px] opacity-80">Ahead Match Card for {holder}{persona ? ", an AI-generated persona" : ""}</p>
           <h2 className="mt-1 font-display text-[28px] leading-tight print:text-[22px]">Show this to your wig fitter.</h2>
         </motion.header>
 
-        <motion.div variants={staggerParent} className="grid grid-cols-2 gap-3 p-6 print:mx-auto print:w-[64%] print:gap-2 print:px-0 print:py-3">
+        <motion.div variants={staggerParent} className="grid grid-cols-2 gap-3 p-6 print:mx-auto print:w-[38%] print:gap-2 print:px-0 print:py-2">
           <motion.figure variants={photo}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={photoUrl} alt={`${holder} before treatment`} className="aspect-[3/4] w-full rounded-[14px] object-cover ring-1 ring-rule" />
             <figcaption className="mt-2 text-[12px] text-ink-soft">Saved before treatment</figcaption>
           </motion.figure>
           <motion.figure variants={photo}>
-            {look.wig ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={look.wig.url} alt={`${holder} wearing the chosen wig`} className="aspect-[3/4] w-full rounded-[14px] object-cover ring-1 ring-rule" />
+            {lookWig ? (
+              <div className="aspect-[3/4] w-full overflow-hidden rounded-[14px] ring-1 ring-rule">
+                <Photo src={lookWig.url} alt={`${holder} wearing the chosen wig`} />
+              </div>
             ) : (
               <div className="grid aspect-[3/4] w-full place-items-center rounded-[14px] border border-dashed border-rule p-4 text-center text-[13px] text-ink-soft">
-                No wig chosen yet
+                {look.wig ? "This try-on has expired. Refresh it in Rebuild." : "No wig chosen yet"}
               </div>
             )}
             <figcaption className="mt-2 text-[12px] text-ink-soft">{wig ? wig.label : "Chosen wig"}</figcaption>
@@ -98,25 +117,43 @@ export function MatchCard({
         </motion.div>
 
         <div className="grid gap-6 px-6 pb-6 sm:grid-cols-[1fr_auto] print:grid-cols-[1fr_auto] print:gap-4 print:px-5 print:pb-3">
-          <motion.dl variants={staggerParent} className="divide-y divide-rule/70">
-            <Row label="Hair colour">
-              <span className="inline-flex items-center gap-2">
-                <span aria-hidden className="size-4 rounded-full ring-1 ring-black/10" style={{ background: passport.hairHex }} />
-                <span className="font-mono">{passport.hairHex}</span>
-              </span>
-            </Row>
-            <Row label="Shade family">{wig?.shade ?? shadeFamily(passport.hairHex)}</Row>
-            <Row label="Length">{lengthName[passport.hairLength]}</Row>
-            {look.wig && <Row label="Colour match">{look.wig.match}% to the saved colour</Row>}
-            <Row label="Brow guide">
-              {browLabel(passport.brow.preset)}, thickness {passport.brow.thickness === 0 ? "as saved" : passport.brow.thickness},{" "}
-              <span className="inline-flex items-center gap-1.5 align-middle">
-                <span aria-hidden className="size-3.5 rounded-full ring-1 ring-black/10" style={{ background: passport.brow.hex }} />
-                <span className="font-mono">{passport.brow.hex}</span>
-              </span>
-            </Row>
-            {hat && <Row label="Headwear">{hat.label}</Row>}
-          </motion.dl>
+          <motion.div variants={staggerParent} className="grid gap-5 print:gap-1.5">
+            <Group title={persona ? "Saved hair" : "Your saved hair"}>
+              <Row label="Colour">
+                <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <Dot hex={passport.hairHex} />
+                  <span>{shadeFamily(passport.hairHex)}</span>
+                  <span className="font-mono text-ink-soft">{passport.hairHex}</span>
+                </span>
+              </Row>
+              <Row label="Length">{lengthName[passport.hairLength]}</Row>
+            </Group>
+            {wig && lookWig && (
+              <Group title={persona ? "Wig chosen" : "Wig you chose"}>
+                <Row label="Wig">{wig.label}</Row>
+                <Row label="Shade">
+                  <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <Dot hex={wig.hex} />
+                    <span>{wigShade(wig)}</span>
+                  </span>
+                </Row>
+                <Row label="Length">{lengthName[wig.length]}</Row>
+                <Row label="Colour ring">{lookWig.match === 100 ? "Same shade as the saved hair" : `${lookWig.match}% match to the saved hair`}</Row>
+              </Group>
+            )}
+            <Group title="Brow guide">
+              <Row label="Shape">{browLabel(passport.brow.preset)}</Row>
+              <Row label="Colour">
+                <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <Dot hex={passport.brow.hex} />
+                  <span>{shadeFamily(passport.brow.hex)}</span>
+                  <span className="font-mono text-ink-soft">{passport.brow.hex}</span>
+                </span>
+              </Row>
+              <Row label="Thickness">{passport.brow.thickness === 0 ? "As saved" : passport.brow.thickness}</Row>
+              {hat && <Row label="Headwear">{hat.label}</Row>}
+            </Group>
+          </motion.div>
           <motion.div variants={photo} className="flex flex-col items-center gap-2 sm:w-36 print:w-28">
             {qr ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -128,12 +165,16 @@ export function MatchCard({
           </motion.div>
         </div>
 
-        {look.brow && (
-          <motion.div variants={piece} className="flex items-center gap-4 border-t border-dashed border-rule px-6 py-4 print:px-5 print:py-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={look.brow.url} alt="Saved brows drawn on the photo, as a drawing guide" className="h-20 w-16 rounded-[10px] object-cover ring-1 ring-rule print:h-14 print:w-11" />
-            <p className="text-[13px] leading-relaxed text-ink-soft">Brow drawing guide: the saved shape and colour, drawn on {persona ? `${holder}'s` : "your"} face.</p>
-          </motion.div>
+        {lookBrow && (
+          <motion.figure variants={piece} className="border-t border-dashed border-rule px-6 py-4 print:flex print:items-center print:gap-3 print:px-5 print:py-2">
+            {/* An eye-area crop a brow artist can actually read, not a thumbnail. */}
+            <div className="aspect-[5/2] w-full overflow-hidden rounded-[14px] ring-1 ring-rule print:w-[58%] print:shrink-0">
+              <Photo src={lookBrow.url} alt={`Close-up of the saved brows drawn on ${whose} face, as a drawing guide`} closeUp />
+            </div>
+            <figcaption className="mt-2 text-[13px] leading-relaxed text-ink-soft print:mt-0 print:text-[10.5px]">
+              Brow drawing guide: {browLabel(passport.brow.preset).toLowerCase()} in {passport.brow.hex}, drawn on {whose} face{lookBrow.wigId ? " with the chosen wig" : ""}.
+            </figcaption>
+          </motion.figure>
         )}
 
         <motion.footer variants={piece} className="border-t border-rule px-6 py-3 text-[12px] text-ink-soft print:px-5 print:py-2">Cosmetic planning aid. Not medical advice.</motion.footer>
