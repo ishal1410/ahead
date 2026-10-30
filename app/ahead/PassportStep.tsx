@@ -6,6 +6,8 @@ import { samplePatch } from "@/lib/browser";
 import { PassportPage } from "./PassportPage";
 import { Button, Frame, PersonaNote } from "./ui";
 import { PRIVACY } from "./Landing";
+import { motion } from "motion/react";
+import { motionTokens, springs, staggerChild, staggerParent } from "./motion";
 
 export interface Draft {
   hairHex?: string;
@@ -112,13 +114,19 @@ export function PassportStep({
         className="pointer-events-none absolute grid -translate-x-1/2 -translate-y-1/2 place-items-center"
         style={{ left: `${at[0] * 100}%`, top: `${at[1] * 100}%` }}
       >
-        <span className="size-7 rounded-full border-2 border-white shadow-[0_0_0_1px_rgb(0_0_0/0.35)]" />
+        <motion.span
+          key={at.join()}
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={springs.snappy}
+          className="size-7 rounded-full border-2 border-white shadow-[0_0_0_1px_rgb(0_0_0/0.35)]"
+        />
         <span className="mt-1 rounded-full bg-black/60 px-2 py-0.5 text-[11px] text-white">{label}</span>
       </span>
     );
 
   return (
-    <main id="main" className="rise mx-auto max-w-6xl px-4 py-10 sm:px-8 lg:py-14">
+    <main id="main" className="mx-auto max-w-6xl px-4 py-10 sm:px-8 lg:py-14">
       <h1 tabIndex={-1} data-step-heading className="font-display text-4xl leading-tight tracking-[-0.01em] outline-none sm:text-5xl">
         Your Look Passport
       </h1>
@@ -140,9 +148,10 @@ export function PassportStep({
                 type="button"
                 aria-pressed={target === t}
                 onClick={() => setTarget(t)}
-                className={`min-h-10 cursor-pointer rounded-full px-5 text-[15px] transition-colors duration-300 ease-calm ${target === t ? "bg-surface shadow-sm" : "text-ink-soft"}`}
+                className={`relative min-h-10 cursor-pointer rounded-full px-5 text-[15px] transition-colors duration-300 ease-calm ${target === t ? "text-ink" : "text-ink-soft hover:text-ink"}`}
               >
-                {t === "hair" ? "Hair" : "Brow"}
+                {target === t && <motion.span aria-hidden layoutId="sample-target" transition={springs.snappy} className="absolute inset-0 rounded-full bg-surface shadow-sm" />}
+                <span className="relative">{t === "hair" ? "Hair" : "Brow"}</span>
               </button>
             ))}
           </div>
@@ -201,7 +210,7 @@ export function PassportStep({
               {LENGTHS.map((l) => (
                 <label key={l} className="cursor-pointer">
                   <input type="radio" name="length" value={l} checked={draft.hairLength === l} onChange={() => setDraft({ ...draft, hairLength: l })} className="peer sr-only" />
-                  <span className="inline-flex min-h-11 items-center rounded-full px-5 ring-1 ring-inset ring-rule transition-colors duration-300 ease-calm peer-checked:bg-cover peer-checked:text-on-cover peer-checked:ring-cover peer-focus-visible:outline-2 peer-focus-visible:outline-offset-3 peer-focus-visible:outline-cover">
+                  <span className="press inline-flex min-h-11 items-center rounded-full px-5 ring-1 ring-inset ring-rule hover:ring-ink-soft/50 peer-checked:bg-cover peer-checked:text-on-cover peer-checked:ring-cover peer-focus-visible:outline-2 peer-focus-visible:outline-offset-3 peer-focus-visible:outline-cover">
                     {lengthLabel[l]}
                   </span>
                 </label>
@@ -230,13 +239,29 @@ export function PassportStep({
         </p>
 
         {anyTiles && (
-          <div role="radiogroup" aria-label="Brow shapes" className="mt-8 grid grid-cols-3 gap-2 sm:gap-5">
+          <motion.div role="radiogroup" aria-label="Brow shapes" variants={staggerParent} initial="hidden" animate="visible" className="mt-8 grid grid-cols-3 gap-2 sm:gap-5">
             {BROW_PRESETS.map((p) => {
               const t = tiles[p.id] ?? { state: "idle" };
               const chosen = draft.browPreset === p.id;
               return (
-                <div key={p.id} className={`rounded-[14px] p-1 sm:rounded-[20px] sm:p-1.5 ring-1 transition-[box-shadow] duration-300 ease-calm ${chosen ? "ring-2 ring-cover" : "ring-rule"}`}>
-                  <div className="relative aspect-[3/4] overflow-hidden rounded-[10px] bg-tint sm:rounded-[14px]">
+                <motion.div
+                  key={p.id}
+                  variants={staggerChild}
+                  className={`group relative rounded-[14px] bg-surface p-1 ring-1 transition-[box-shadow,transform] duration-300 ease-calm sm:rounded-[20px] sm:p-1.5 ${chosen ? "shadow-[var(--shadow)] ring-2 ring-cover" : "ring-rule hover:ring-ink-soft/50 hover:shadow-[var(--shadow)]"}`}
+                >
+                  {chosen && (
+                    <motion.span
+                      aria-hidden
+                      layoutId="brow-chosen"
+                      transition={springs.settle}
+                      className="absolute -right-1.5 -top-1.5 z-10 grid size-7 place-items-center rounded-full bg-cover text-on-cover shadow-[var(--shadow)] sm:-right-2 sm:-top-2 sm:size-8"
+                    >
+                      <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <motion.path d="M3.5 8.5l3 3 6-7" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: motionTokens.duration.normal, ease: motionTokens.easing.smooth, delay: 0.1 }} />
+                      </svg>
+                    </motion.span>
+                  )}
+                  <div className={`relative aspect-[3/4] overflow-hidden rounded-[10px] bg-tint sm:rounded-[14px] ${t.state === "running" || t.state === "idle" ? "shimmer" : ""}`}>
                     {t.state === "done" && t.url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={t.url} alt={`${p.label} brows drawn on your photo`} className="develop size-full object-cover" />
@@ -250,7 +275,9 @@ export function PassportStep({
                         </div>
                       </div>
                     ) : (
-                      <div className="breathe grid size-full place-items-center p-2 text-center text-[12px] text-ink-soft sm:text-[14px]">Drawing</div>
+                      <div className="grid size-full place-items-end p-2 text-center text-[12px] text-ink-soft sm:p-4 sm:text-[14px]">
+                        <span className="w-full">Drawing</span>
+                      </div>
                     )}
                   </div>
                   <button
@@ -262,12 +289,12 @@ export function PassportStep({
                     className="mt-1 flex min-h-11 w-full cursor-pointer flex-col items-start justify-center rounded-full px-2 text-left disabled:cursor-default disabled:opacity-50 sm:mt-1.5 sm:flex-row sm:items-center sm:justify-between sm:px-4"
                   >
                     <span className="text-[14px] font-medium sm:text-base">{p.label}</span>
-                    <span className={`text-[12px] sm:text-[14px] ${chosen ? "text-cover" : "text-ink-soft"}`}>{chosen ? "Mine" : "Choose"}</span>
+                    <span className={`text-[12px] transition-colors duration-300 ease-calm sm:text-[14px] ${chosen ? "font-medium text-cover" : "text-ink-soft group-hover:text-ink"}`}>{chosen ? "Mine" : "Choose"}</span>
                   </button>
-                </div>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
         )}
       </section>
 
@@ -278,10 +305,10 @@ export function PassportStep({
         </p>
         <div className="flex flex-col gap-3 sm:flex-row">
           {savedAt ? (
-            <>
+            <div className="enter flex flex-col gap-3 sm:flex-row" style={{ animationDelay: "350ms" }}>
               <Button variant="quiet" onClick={onDownload}>Download passport (JSON)</Button>
               <Button onClick={onContinue}>Continue to rebuild</Button>
-            </>
+            </div>
           ) : (
             <Button disabled={!ready} onClick={() => imgRef.current && onSave(imgRef.current)}>
               Save my passport

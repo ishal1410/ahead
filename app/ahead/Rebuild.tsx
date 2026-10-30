@@ -4,6 +4,14 @@ import type { HatRef, WigRef } from "@/lib/catalog";
 import { rankByColour } from "@/lib/color";
 import { browLabel, shadeFamily, type Passport } from "@/lib/passport";
 import { Button, Frame, PersonaNote, Swatch } from "./ui";
+import { AnimatePresence, motion } from "motion/react";
+import { CountUp, motionTokens, springs, staggerChild, staggerParent } from "./motion";
+
+const panelMotion = {
+  initial: { opacity: 0, y: motionTokens.distance.sm },
+  animate: { opacity: 1, y: 0, transition: { duration: motionTokens.duration.normal, ease: motionTokens.easing.smooth } },
+  exit: { opacity: 0, transition: { duration: motionTokens.duration.fast, ease: motionTokens.easing.sharp } },
+};
 
 export interface Look {
   wig?: { id: string; url: string; match: number };
@@ -114,7 +122,7 @@ export function Rebuild({
     : error ?? "";
 
   return (
-    <main id="main" className="rise mx-auto max-w-6xl px-4 py-10 sm:px-8 lg:py-14">
+    <main id="main" className="mx-auto max-w-6xl px-4 py-10 sm:px-8 lg:py-14">
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 tabIndex={-1} data-step-heading className="font-display text-4xl leading-tight tracking-[-0.01em] outline-none sm:text-5xl">
@@ -130,16 +138,43 @@ export function Rebuild({
         {/* Shared face stage */}
         <div className="lg:sticky lg:top-6 lg:self-start">
           <Frame className="p-2">
-            <div className="relative overflow-hidden rounded-[14px] bg-tint">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img key={stage} src={stage} alt={stageCaption} className="develop mx-auto block max-h-[620px] w-auto max-w-full" />
-              {busy && (
-                <div className="absolute inset-0 grid place-items-center bg-paper/55 backdrop-blur-[2px]">
-                  <span className="breathe rounded-full bg-surface px-4 py-2 text-[14px] shadow-[var(--shadow)]">Rendering</span>
-                </div>
-              )}
+            <div className="relative grid overflow-hidden rounded-[14px] bg-tint">
+              {/* Each new render develops over the last one: same frame, no jump. */}
+              <AnimatePresence initial={false} mode="sync">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <motion.img
+                  key={stage}
+                  src={stage}
+                  alt={stageCaption}
+                  className="col-start-1 row-start-1 mx-auto block max-h-[620px] w-auto max-w-full"
+                  initial={{ opacity: 0, scale: 1.015, filter: "blur(6px)" }}
+                  animate={{ opacity: 1, scale: 1, filter: "blur(0px)", transition: { duration: motionTokens.duration.crawl, ease: motionTokens.easing.smooth } }}
+                  exit={{ opacity: 0, transition: { duration: motionTokens.duration.slow, ease: motionTokens.easing.smooth } }}
+                />
+              </AnimatePresence>
+              <AnimatePresence>
+                {busy && (
+                  <motion.div
+                    key="busy"
+                    className="shimmer absolute inset-0 grid place-items-end bg-paper/35 p-4"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: motionTokens.duration.normal, ease: motionTokens.easing.smooth }}
+                  >
+                    <span className="relative mx-auto inline-flex items-center gap-2.5 rounded-full bg-surface px-4 py-2 text-[14px] shadow-[var(--shadow)]">
+                      <span aria-hidden className="breathe size-1.5 rounded-full bg-cover" />
+                      Rendering
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-            <p className="px-3 pb-2 pt-3 text-[14px] text-ink-soft">{stageCaption}</p>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.p key={stageCaption} {...panelMotion} className="px-3 pb-2 pt-3 text-[14px] text-ink-soft">
+                {stageCaption}
+              </motion.p>
+            </AnimatePresence>
           </Frame>
           <p role="status" aria-live="polite" className={`mt-3 min-h-6 text-[14px] ${error && !busy ? "text-danger" : "text-ink-soft"}`}>
             {status}
@@ -160,16 +195,18 @@ export function Rebuild({
                 aria-controls={`panel-${t.id}`}
                 tabIndex={tab === t.id ? 0 : -1}
                 onClick={() => setTab(t.id)}
-                className={`min-h-10 cursor-pointer rounded-full px-5 text-[15px] transition-colors duration-300 ease-calm ${tab === t.id ? "bg-surface shadow-sm" : "text-ink-soft hover:text-ink"}`}
+                className={`relative min-h-10 cursor-pointer rounded-full px-5 text-[15px] transition-colors duration-300 ease-calm ${tab === t.id ? "text-ink" : "text-ink-soft hover:text-ink"}`}
               >
-                {t.label}
+                {tab === t.id && <motion.span aria-hidden layoutId="rebuild-tab" transition={springs.snappy} className="absolute inset-0 rounded-full bg-surface shadow-sm" />}
+                <span className="relative">{t.label}</span>
               </button>
             ))}
           </div>
 
           <section role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="mt-8">
+            <AnimatePresence mode="wait" initial={false}>
             {tab === "brows" && (
-              <div className="rise">
+              <motion.div key="brows" {...panelMotion}>
                 <h2 className="font-display text-3xl tracking-[-0.01em]">Your brows, from your passport</h2>
                 <p className="mt-3 max-w-[50ch] leading-relaxed text-ink-soft">
                   Your saved shape and colour, drawn on your face. This is the guide you or a brow artist can redraw from.
@@ -194,11 +231,11 @@ export function Rebuild({
                   </Button>
                   <span className="text-[14px] text-ink-soft">{look.wig ? "Drawn with the wig you chose." : "Choose a wig first to see them together."}</span>
                 </div>
-              </div>
+              </motion.div>
             )}
 
             {tab === "wigs" && (
-              <div className="rise">
+              <motion.div key="wigs" {...panelMotion}>
                 <h2 className="font-display text-3xl tracking-[-0.01em]">Closest to your hair first</h2>
                 <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-ink-soft">
                   <Swatch hex={passport.hairHex} label={`Saved: ${shadeFamily(passport.hairHex)}, ${lengthName[passport.hairLength].toLowerCase()}`} size="sm" />
@@ -218,45 +255,64 @@ export function Rebuild({
                     </p>
                   </div>
                 ) : (
-                  <ul className="mt-8 grid gap-4 sm:grid-cols-2">
+                  <motion.ul variants={staggerParent} initial="hidden" animate="visible" className="mt-8 grid gap-4 sm:grid-cols-2">
                     {ranked.map((w) => {
                       const chosen = look.wig?.id === w.id;
                       const loading = busy === `wig:${w.id}`;
                       return (
-                        <li key={w.id}>
+                        <motion.li key={w.id} variants={staggerChild} className="h-full">
                           <button
                             type="button"
                             onClick={() => tryWig(w)}
                             disabled={!!busy}
                             aria-pressed={chosen}
-                            className={`group flex w-full cursor-pointer gap-4 rounded-[20px] bg-surface p-2 text-left ring-1 transition-[box-shadow,transform] duration-300 ease-calm active:scale-[0.99] disabled:cursor-wait ${chosen ? "ring-2 ring-cover" : "ring-rule hover:ring-ink-soft"}`}
+                            className={`press group relative flex h-full w-full cursor-pointer gap-4 rounded-[20px] bg-surface p-2 text-left ring-1 disabled:cursor-wait ${chosen ? "shadow-[var(--shadow)] ring-2 ring-cover" : "ring-rule hover:shadow-[var(--shadow)] hover:ring-ink-soft/50"}`}
                           >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={pub(w.file)} alt="" className={`aspect-[3/4] w-24 shrink-0 rounded-[14px] object-cover ${loading ? "breathe" : ""}`} />
-                            <span className="flex min-w-0 flex-col justify-between py-1 pr-2">
+                            <span className={`block aspect-[3/4] w-24 shrink-0 overflow-hidden rounded-[14px] bg-tint ${loading ? "shimmer" : ""}`}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={pub(w.file)} alt="" className="size-full object-cover transition-transform duration-500 ease-calm group-hover:scale-[1.04]" />
+                            </span>
+                            <span className="flex min-w-0 flex-1 flex-col justify-between gap-3 py-1 pr-2">
                               <span>
-                                <span className="block font-medium leading-snug">{w.label}</span>
+                                <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                  <span className="font-medium leading-snug">{w.label}</span>
+                                  {chosen && (
+                                    <motion.span layoutId="wig-chosen" transition={springs.settle} className="rounded-full bg-tint px-2 py-0.5 text-[12px] text-cover">
+                                      On your photo
+                                    </motion.span>
+                                  )}
+                                </span>
                                 <span className="mt-1 block text-[14px] text-ink-soft">
                                   {w.shade}, {lengthName[w.length].toLowerCase()}
                                   {w.length === passport.hairLength && ", your length"}
                                 </span>
                               </span>
-                              <span className="flex items-baseline gap-1.5">
-                                <span className="font-display text-3xl leading-none">{w.match}%</span>
-                                <span className="text-[13px] text-ink-soft">colour match</span>
+                              <span className="block">
+                                <span className="flex items-baseline gap-1.5">
+                                  <span className="font-display text-3xl leading-none">{w.match}%</span>
+                                  <span className="text-[13px] text-ink-soft">colour match</span>
+                                </span>
+                                <span aria-hidden className="mt-2.5 block h-[3px] overflow-hidden rounded-full bg-tint">
+                                  <motion.span
+                                    className="block h-full origin-left rounded-full bg-cover"
+                                    initial={{ scaleX: 0 }}
+                                    animate={{ scaleX: w.match / 100 }}
+                                    transition={{ duration: motionTokens.duration.crawl, ease: motionTokens.easing.smooth, delay: 0.25 }}
+                                  />
+                                </span>
                               </span>
                             </span>
                           </button>
-                        </li>
+                        </motion.li>
                       );
                     })}
-                  </ul>
+                  </motion.ul>
                 )}
-              </div>
+              </motion.div>
             )}
 
             {tab === "headwear" && (
-              <div className="rise">
+              <motion.div key="headwear" {...panelMotion}>
                 <h2 className="font-display text-3xl tracking-[-0.01em]">Headwear</h2>
                 <p className="mt-3 max-w-[50ch] leading-relaxed text-ink-soft">
                   {look.wig ? "Tried on over the wig you chose, so you see the full look." : "Tried on your photo. Choose a wig first to see them together."}
@@ -288,8 +344,9 @@ export function Rebuild({
                     })}
                   </ul>
                 )}
-              </div>
+              </motion.div>
             )}
+            </AnimatePresence>
           </section>
         </div>
       </div>
@@ -312,8 +369,17 @@ function CanYouTell({ photoUrl, wigUrl, match, whose, onClose }: { photoUrl: str
     return () => clearTimeout(t);
   }, []);
 
-  const label = (text: string) => (
-    <figcaption className={`reveal-caption mt-3 text-center text-[14px] text-ink-soft ${revealed ? "opacity-100" : "translate-y-1 opacity-0"}`}>{text}</figcaption>
+  const sentence = `Right is a wig. ${match}% colour match to the hair ${whose}.`;
+  const words = sentence.split(" ");
+  const label = (text: string, i: number) => (
+    <motion.figcaption
+      initial={false}
+      animate={revealed ? { opacity: 1, y: 0 } : { opacity: 0, y: motionTokens.distance.xs }}
+      transition={{ duration: motionTokens.duration.slow, ease: motionTokens.easing.smooth, delay: i * 0.12 }}
+      className="mt-3 text-center font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft sm:text-[12px]"
+    >
+      {text}
+    </motion.figcaption>
   );
 
   return (
@@ -325,30 +391,64 @@ function CanYouTell({ photoUrl, wigUrl, match, whose, onClose }: { photoUrl: str
     >
       <div className="guilloche px-4 py-8 sm:px-10 sm:py-12">
         <div className="flex items-start justify-between gap-4">
-          <h2 id="tell-h" className="font-display text-4xl tracking-[-0.01em] sm:text-5xl">
-            Can you tell?
-          </h2>
+          <div>
+            <h2 id="tell-h" className="font-display text-4xl tracking-[-0.01em] sm:text-5xl">
+              Can you tell?
+            </h2>
+            {/* the two quiet seconds, measured by a hairline */}
+            <span aria-hidden className="mt-4 block h-px w-28 overflow-hidden bg-rule">
+              <span className="measure block h-full bg-cover" />
+            </span>
+          </div>
           <Button variant="quiet" onClick={() => ref.current?.close()}>Close</Button>
         </div>
 
-        <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-8">
+        {/* Width capped by viewport height so title, portraits and the reveal line share one screen. */}
+        <div className="mx-auto mt-8 grid max-w-[max(18rem,calc((100dvh-21rem)*1.45))] grid-cols-2 gap-3 sm:gap-8">
           {[photoUrl, wigUrl].map((src, i) => (
             <figure key={src} className="develop" style={{ animationDelay: `${i * 180}ms` }}>
-              <div className="rounded-[20px] bg-surface p-1.5 shadow-[var(--shadow)] ring-1 ring-rule/70 sm:p-2.5">
+              <div
+                className={`rounded-[20px] bg-surface p-1.5 shadow-[var(--shadow)] ring-1 transition-[box-shadow] duration-[900ms] ease-calm sm:p-2.5 ${revealed && i ? "ring-2 ring-cover" : "ring-rule/70"}`}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={src} alt={revealed ? (i ? "Wearing the matched wig" : "Original photo, before treatment") : "Portrait"} className="aspect-[3/4] w-full rounded-[14px] object-cover" />
               </div>
-              {label(i ? "Wig" : "Own hair, saved before")}
+              {label(i ? "Wig" : "Own hair, saved before", i)}
             </figure>
           ))}
         </div>
 
-        <p
-          aria-live="polite"
-          className={`reveal-caption mx-auto mt-10 max-w-[30ch] text-center font-display text-2xl leading-snug sm:text-[34px] ${revealed ? "opacity-100" : "translate-y-2 opacity-0"}`}
-        >
-          {revealed ? `Right is a wig. ${match}% colour match to the hair ${whose}.` : ""}
+        <p aria-live="polite" className="sr-only">
+          {revealed ? sentence : ""}
         </p>
+        {/* Visual reveal: the line arrives word by word, the match counts up. */}
+        <motion.p
+          aria-hidden
+          initial="hidden"
+          animate={revealed ? "visible" : "hidden"}
+          variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.06, delayChildren: 0.15 } } }}
+          className="mx-auto mt-10 min-h-[2.6em] max-w-[30ch] text-balance text-center font-display text-2xl leading-snug sm:text-[34px]"
+        >
+          {words.map((w, i) => (
+            <motion.span
+              key={i}
+              className="inline-block whitespace-pre"
+              variants={{
+                hidden: { opacity: 0, y: motionTokens.distance.sm, filter: "blur(4px)" },
+                visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: motionTokens.duration.slow, ease: motionTokens.easing.smooth } },
+              }}
+            >
+              {w === `${match}%` ? (
+                <span className="text-cover">
+                  <CountUp to={match} start={revealed} />%
+                </span>
+              ) : (
+                w
+              )}
+              {i < words.length - 1 ? " " : ""}
+            </motion.span>
+          ))}
+        </motion.p>
       </div>
     </dialog>
   );

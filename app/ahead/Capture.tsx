@@ -28,7 +28,7 @@ export function Capture({ onConfirm, busy, error }: { onConfirm: (url: string) =
   const message = localError ?? error;
 
   return (
-    <main id="main" className="rise mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-8 lg:grid-cols-[1fr_1.1fr] lg:gap-16 lg:py-16">
+    <main id="main" className="mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-8 lg:grid-cols-[1fr_1.1fr] lg:gap-16 lg:py-16">
       <div>
         <h1 tabIndex={-1} data-step-heading className="font-display text-4xl leading-tight tracking-[-0.01em] outline-none sm:text-5xl">
           One photo, taken today

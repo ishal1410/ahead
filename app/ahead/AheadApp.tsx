@@ -10,6 +10,8 @@ import { PassportStep, type Draft } from "./PassportStep";
 import { Rebuild, type Look } from "./Rebuild";
 import { MatchCard } from "./MatchCard";
 import { Button } from "./ui";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
+import { motionTokens } from "./motion";
 
 type Step = "landing" | "capture" | "passport" | "rebuild" | "card";
 interface Session {
@@ -50,11 +52,15 @@ export function AheadApp() {
     loadManifest().then(setManifest);
   }, []);
 
-  // Move focus to each new screen's heading so screen readers hear the change.
-  useEffect(() => {
+  // Runs when the next screen mounts (after the old one has faded out): start it at
+  // the top and move focus to its heading so screen readers hear the change.
+  const firstScreen = useRef(true);
+  const onScreenMount = useCallback((el: HTMLDivElement | null) => {
+    if (!el) return;
+    if (firstScreen.current) return void (firstScreen.current = false);
     window.scrollTo({ top: 0 });
-    if (step !== "landing") document.querySelector<HTMLElement>("[data-step-heading]")?.focus();
-  }, [step]);
+    el.querySelector<HTMLElement>("[data-step-heading]")?.focus({ preventScroll: true });
+  }, []);
 
   const demo = session?.mode === "demo" ? manifest : null;
   const holder = demo ? demo.persona.name : "You";
@@ -178,6 +184,7 @@ export function AheadApp() {
   const stepIndex = FLOW.findIndex((f) => f.id === step);
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="flex min-h-dvh flex-col">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-20 focus:rounded-full focus:bg-surface focus:px-4 focus:py-2">
         Skip to content
@@ -200,9 +207,12 @@ export function AheadApp() {
                       disabled={!reachable || (f.id !== "capture" && !session)}
                       aria-current={f.id === step ? "step" : undefined}
                       onClick={() => setStep(f.id)}
-                      className={`cursor-pointer py-2 transition-colors duration-300 ease-calm disabled:cursor-default ${f.id === step ? "text-ink underline decoration-cover decoration-2 underline-offset-[6px]" : reachable ? "text-ink-soft hover:text-ink" : "text-ink-soft/50"}`}
+                      className={`relative cursor-pointer py-2 transition-colors duration-300 ease-calm disabled:cursor-default ${f.id === step ? "text-ink" : reachable ? "text-ink-soft hover:text-ink" : "text-ink-soft/50"}`}
                     >
                       {f.label}
+                      {f.id === step && (
+                        <motion.span aria-hidden layoutId="progress-mark" className="absolute inset-x-0 bottom-1 h-0.5 rounded-full bg-cover" transition={{ duration: motionTokens.duration.normal, ease: motionTokens.easing.smooth }} />
+                      )}
                     </button>
                   </li>
                 );
@@ -227,7 +237,15 @@ export function AheadApp() {
         </div>
       )}
 
-      <div className="flex-1">
+      <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={step}
+        ref={onScreenMount}
+        className="flex-1"
+        initial={{ opacity: 0, y: motionTokens.distance.sm }}
+        animate={{ opacity: 1, y: 0, transition: { duration: motionTokens.duration.normal, ease: motionTokens.easing.smooth } }}
+        exit={{ opacity: 0, y: -motionTokens.distance.xs, transition: { duration: motionTokens.duration.fast, ease: motionTokens.easing.sharp } }}
+      >
         {step === "landing" && (
           <Landing onStart={startLive} onDemo={startDemo} demoState={demoState} saved={saved} onOpenSaved={openSaved} specimenPhoto={manifest?.persona.photo} />
         )}
@@ -264,7 +282,9 @@ export function AheadApp() {
         {step === "card" && session && passport && (
           <MatchCard passport={passport} photoUrl={session.photoUrl} holder={holder} persona={persona} look={look} wigs={wigs} hats={hats} onBack={() => setStep("rebuild")} />
         )}
-      </div>
+      </motion.div>
+      </AnimatePresence>
     </div>
+    </MotionConfig>
   );
 }

@@ -85,12 +85,6 @@ body {
   word-break: break-all;
 }
 
-/* One quiet entrance per screen change. */
-@keyframes rise {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
-}
-.rise { animation: rise 700ms var(--ease-calm) both; }
 
 @keyframes breathe {
   0%, 100% { opacity: 0.55; }
@@ -98,11 +92,69 @@ body {
 }
 .breathe { animation: breathe 1.8s ease-in-out infinite; }
 
-@keyframes stamp {
-  from { opacity: 0; transform: rotate(-14deg) scale(1.25); }
-  to { opacity: 1; transform: rotate(-8deg) scale(1); }
+/* Hero choreography: each headline line rises out of a mask, then the rest settles in. */
+.line-mask { display: block; overflow: hidden; padding-bottom: 0.08em; margin-bottom: -0.08em; }
+@keyframes line-in {
+  from { opacity: 0; transform: translateY(70%); }
+  to { opacity: 1; transform: none; }
 }
-.stamp { transform: rotate(-8deg); animation: stamp 600ms var(--ease-calm) both; }
+.line-in { display: block; animation: line-in 900ms var(--ease-calm) both; }
+@keyframes enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+.enter { animation: enter 800ms var(--ease-calm) both; }
+
+/* The specimen passport is set down on the table: it arrives a touch rotated and settles. */
+.hero-object { --tilt: 0deg; animation: set-down 950ms var(--ease-calm) 150ms both; transform: rotate(var(--tilt)); }
+@media (min-width: 768px) { .hero-object { --tilt: 1.5deg; } }
+@keyframes set-down {
+  from { opacity: 0; transform: translateY(28px) rotate(calc(var(--tilt) + 2.5deg)); }
+  to { opacity: 1; transform: rotate(var(--tilt)); }
+}
+
+/* Tactile controls: a 1px lift on hover, a firm press. Transform + opacity only. */
+.press { transition: transform 180ms var(--ease-calm), background-color 200ms var(--ease-calm), color 200ms var(--ease-calm), opacity 200ms var(--ease-calm), box-shadow 240ms var(--ease-calm); }
+@media (hover: hover) { .press:not(:disabled):hover { transform: translateY(-1px); } }
+.press:not(:disabled):active { transform: translateY(0) scale(0.97); transition-duration: 80ms; }
+
+/* The "Saved" stamp: falls from above, presses into the page, ink spreads once. */
+@keyframes stamp {
+  0% { opacity: 0; transform: rotate(-15deg) scale(1.55); }
+  55% { opacity: 1; transform: rotate(-8deg) scale(0.95); }
+  72% { transform: rotate(-8deg) scale(1.015); }
+  100% { opacity: 0.92; transform: rotate(-8deg) scale(1); }
+}
+.stamp { transform: rotate(-8deg); animation: stamp 640ms cubic-bezier(0.5, 0, 0.3, 1) both; }
+@keyframes ink {
+  0% { opacity: 0; transform: scale(0.9); }
+  40% { opacity: 0.35; }
+  100% { opacity: 0; transform: scale(1.22); }
+}
+.stamp::after { content: ""; position: absolute; inset: -2px; border-radius: 9999px; border: 2px solid var(--cover); animation: ink 700ms var(--ease-calm) 330ms both; pointer-events: none; }
+/* The page takes the weight of the stamp at the moment of contact. */
+@keyframes thud {
+  0%, 100% { transform: none; }
+  40% { transform: scale(0.992) translateY(1px); }
+}
+.thud { animation: thud 420ms var(--ease-calm) 300ms both; }
+
+/* Rendering: a slow light passes over the tile. Calm, never a spinner. */
+.shimmer { position: relative; overflow: hidden; }
+.shimmer::before {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / 0.45) 50%, transparent 80%);
+  animation: sweep 1.9s var(--ease-calm) infinite;
+}
+@media (prefers-color-scheme: dark) { .shimmer::before { background: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / 0.08) 50%, transparent 80%); } }
+@keyframes sweep { to { transform: translateX(100%); } }
+
+/* "Can you tell?": a hairline measures the two quiet seconds before the reveal. */
+@keyframes measure { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.measure { transform-origin: left; animation: measure 2000ms linear both; }
+dialog[open] { animation: enter 500ms var(--ease-calm) both; }
+dialog[open]::backdrop { animation: fade 400ms var(--ease-calm) both; }
+@keyframes fade { from { opacity: 0; } }
 
 /* "Can you tell?" reveal */
 @keyframes develop {
@@ -110,7 +162,6 @@ body {
   to { opacity: 1; filter: none; transform: none; }
 }
 .develop { animation: develop 1100ms var(--ease-calm) both; }
-.reveal-caption { transition: opacity 900ms var(--ease-calm), transform 900ms var(--ease-calm); }
 
 dialog::backdrop {
   background: rgb(17 22 20 / 0.55);
@@ -119,9 +170,12 @@ dialog::backdrop {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  .shimmer::before { display: none; }
+  .press:not(:disabled):hover, .press:not(:disabled):active { transform: none; }
 }
 
 /* Match Card: print only the card, always in light ink. */
@@ -135,5 +189,8 @@ dialog::backdrop {
   .print-area, .print-area * { visibility: visible; }
   .print-area { position: absolute; inset: 0 auto auto 0; width: 100%; box-shadow: none !important; }
   .no-print { display: none !important; }
+  /* Never print a half-assembled card: drop every animation and motion inline style. */
+  .print-area, .print-area * { animation: none !important; transition: none !important; opacity: 1 !important; transform: none !important; }
+  .print-area::before, .print-area *::before { display: none; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

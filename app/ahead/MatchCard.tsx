@@ -5,15 +5,24 @@ import type { HatRef, WigRef } from "@/lib/catalog";
 import { browLabel, qrPayload, shadeFamily, type Passport } from "@/lib/passport";
 import type { Look } from "./Rebuild";
 import { Button } from "./ui";
+import { motion } from "motion/react";
+import { motionTokens, staggerChild, staggerParent } from "./motion";
+
+// The card assembles piece by piece, like a document being laid out on a desk.
+const piece = staggerChild;
+const photo = {
+  hidden: { opacity: 0, y: motionTokens.distance.md, scale: 0.985 },
+  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: motionTokens.duration.slow, ease: motionTokens.easing.smooth } },
+};
 
 const lengthName = { short: "Short", mid: "Shoulder length", long: "Long" } as const;
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[7.5rem_1fr] gap-3 py-2.5">
+    <motion.div variants={piece} className="grid grid-cols-[7.5rem_1fr] gap-3 py-2.5 print:grid-cols-[6rem_1fr] print:py-1">
       <dt className="text-[13px] text-ink-soft">{label}</dt>
       <dd className="text-[15px]">{children}</dd>
-    </div>
+    </motion.div>
   );
 }
 
@@ -47,7 +56,7 @@ export function MatchCard({
   }, [passport]);
 
   return (
-    <main id="main" className="rise mx-auto max-w-6xl px-4 py-10 sm:px-8 lg:py-14">
+    <main id="main" className="mx-auto max-w-6xl px-4 py-10 sm:px-8 lg:py-14">
       <div className="no-print flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 tabIndex={-1} data-step-heading className="font-display text-4xl leading-tight tracking-[-0.01em] outline-none sm:text-5xl">
@@ -63,19 +72,19 @@ export function MatchCard({
         </div>
       </div>
 
-      <article aria-label="Match Card" className="print-area guilloche mx-auto mt-10 max-w-[620px] overflow-hidden rounded-[20px] shadow-[var(--shadow)] ring-1 ring-rule/70">
-        <header className="bg-cover px-6 py-5 text-on-cover">
+      <motion.article variants={staggerParent} initial="hidden" animate="visible" aria-label="Match Card" className="print-area guilloche mx-auto mt-10 max-w-[620px] overflow-hidden rounded-[20px] shadow-[var(--shadow)] ring-1 ring-rule/70">
+        <motion.header variants={piece} className="bg-cover px-6 py-5 text-on-cover print:px-5 print:py-3">
           <p className="text-[13px] opacity-80">Ahead Match Card for {holder}{persona ? ", an AI-generated persona" : ""}</p>
-          <h2 className="mt-1 font-display text-[28px] leading-tight">Show this to your wig fitter.</h2>
-        </header>
+          <h2 className="mt-1 font-display text-[28px] leading-tight print:text-[22px]">Show this to your wig fitter.</h2>
+        </motion.header>
 
-        <div className="grid grid-cols-2 gap-3 p-6">
-          <figure>
+        <motion.div variants={staggerParent} className="grid grid-cols-2 gap-3 p-6 print:mx-auto print:w-[64%] print:gap-2 print:px-0 print:py-3">
+          <motion.figure variants={photo}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={photoUrl} alt={`${holder} before treatment`} className="aspect-[3/4] w-full rounded-[14px] object-cover ring-1 ring-rule" />
             <figcaption className="mt-2 text-[12px] text-ink-soft">Saved before treatment</figcaption>
-          </figure>
-          <figure>
+          </motion.figure>
+          <motion.figure variants={photo}>
             {look.wig ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={look.wig.url} alt={`${holder} wearing the chosen wig`} className="aspect-[3/4] w-full rounded-[14px] object-cover ring-1 ring-rule" />
@@ -85,11 +94,11 @@ export function MatchCard({
               </div>
             )}
             <figcaption className="mt-2 text-[12px] text-ink-soft">{wig ? wig.label : "Chosen wig"}</figcaption>
-          </figure>
-        </div>
+          </motion.figure>
+        </motion.div>
 
-        <div className="grid gap-6 px-6 pb-6 sm:grid-cols-[1fr_auto]">
-          <dl className="divide-y divide-rule/70">
+        <div className="grid gap-6 px-6 pb-6 sm:grid-cols-[1fr_auto] print:grid-cols-[1fr_auto] print:gap-4 print:px-5 print:pb-3">
+          <motion.dl variants={staggerParent} className="divide-y divide-rule/70">
             <Row label="Hair colour">
               <span className="inline-flex items-center gap-2">
                 <span aria-hidden className="size-4 rounded-full ring-1 ring-black/10" style={{ background: passport.hairHex }} />
@@ -107,28 +116,28 @@ export function MatchCard({
               </span>
             </Row>
             {hat && <Row label="Headwear">{hat.label}</Row>}
-          </dl>
-          <div className="flex flex-col items-center gap-2 sm:w-36">
+          </motion.dl>
+          <motion.div variants={photo} className="flex flex-col items-center gap-2 sm:w-36 print:w-28">
             {qr ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={qr} alt="QR code with the passport recipe, without the photo" className="size-32 rounded-[10px] bg-white p-1.5 ring-1 ring-rule" />
+              <img src={qr} alt="QR code with the passport recipe, without the photo" className="size-32 rounded-[10px] bg-white p-1.5 ring-1 ring-rule print:size-24" />
             ) : (
               <div className="size-32 rounded-[10px] bg-tint" />
             )}
             <p className="text-center text-[11px] leading-snug text-ink-soft">Scan for the recipe. The photo is not included.</p>
-          </div>
+          </motion.div>
         </div>
 
         {look.brow && (
-          <div className="flex items-center gap-4 border-t border-dashed border-rule px-6 py-4">
+          <motion.div variants={piece} className="flex items-center gap-4 border-t border-dashed border-rule px-6 py-4 print:px-5 print:py-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={look.brow.url} alt="Saved brows drawn on the photo, as a drawing guide" className="h-20 w-16 rounded-[10px] object-cover ring-1 ring-rule" />
+            <img src={look.brow.url} alt="Saved brows drawn on the photo, as a drawing guide" className="h-20 w-16 rounded-[10px] object-cover ring-1 ring-rule print:h-14 print:w-11" />
             <p className="text-[13px] leading-relaxed text-ink-soft">Brow drawing guide: the saved shape and colour, drawn on {persona ? `${holder}'s` : "your"} face.</p>
-          </div>
+          </motion.div>
         )}
 
-        <footer className="border-t border-rule px-6 py-3 text-[12px] text-ink-soft">Cosmetic planning aid. Not medical advice.</footer>
-      </article>
+        <motion.footer variants={piece} className="border-t border-rule px-6 py-3 text-[12px] text-ink-soft print:px-5 print:py-2">Cosmetic planning aid. Not medical advice.</motion.footer>
+      </motion.article>
     </main>
   );
 }

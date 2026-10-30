@@ -32,7 +32,7 @@ export function PassportPage({ f, compact = false }: { f: PassportFields; compac
   const saved = f.savedAt ? new Date(f.savedAt) : null;
 
   return (
-    <article aria-label="Look Passport" className="guilloche relative overflow-hidden rounded-[20px] shadow-[var(--shadow)] ring-1 ring-rule/70">
+    <article aria-label="Look Passport" className={`guilloche relative overflow-hidden rounded-[20px] shadow-[var(--shadow)] ring-1 ring-rule/70 ${saved ? "thud" : ""}`}>
       <header className="flex items-baseline justify-between gap-4 bg-cover px-5 py-3 text-on-cover sm:px-6">
         <span className="font-display text-[19px] leading-none">Look Passport</span>
         <span className="text-[12px] opacity-80">Ahead</span>
@@ -68,11 +68,12 @@ export function PassportPage({ f, compact = false }: { f: PassportFields; compac
       </div>
 
       {saved && (
-        <div aria-hidden className="stamp pointer-events-none absolute right-5 top-14 grid size-[84px] place-items-center rounded-full border-2 border-cover text-center text-cover opacity-90 sm:right-7 sm:size-[96px]">
+        <div aria-hidden className="stamp pointer-events-none absolute bottom-5 right-4 grid sm:right-6 size-[84px] place-items-center rounded-full border-2 border-cover text-center text-cover opacity-90 sm:right-7 sm:size-[96px]">
           <span className="font-display text-[15px] leading-tight">
             Saved
             <br />
-            <span className="font-mono text-[10px]">{saved.toISOString().slice(0, 10)}</span>
+            {/* Local date, so the stamp agrees with the "Saved" field (toISOString is UTC). */}
+            <span className="font-mono text-[10px]">{saved.toLocaleDateString("en-CA")}</span>
           </span>
         </div>
       )}

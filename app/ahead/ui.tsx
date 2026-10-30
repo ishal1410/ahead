@@ -6,11 +6,11 @@ type Variant = "primary" | "quiet";
 
 export function Button({ variant = "primary", className = "", ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
   const base =
-    "inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-6 text-[15px] font-medium whitespace-nowrap transition-[transform,background-color,color,opacity] duration-300 ease-calm active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer";
+    "inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-6 text-[15px] font-medium whitespace-nowrap press disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer";
   const look =
     variant === "primary"
-      ? "bg-cover text-on-cover hover:opacity-90"
-      : "bg-transparent text-ink ring-1 ring-inset ring-rule hover:bg-tint";
+      ? "bg-cover text-on-cover shadow-[inset_0_1px_0_rgb(255_255_255/0.14),0_1px_2px_rgb(28_36_32/0.18)] hover:shadow-[inset_0_1px_0_rgb(255_255_255/0.14),0_8px_20px_-8px_rgb(28_36_32/0.45)]"
+      : "bg-transparent text-ink ring-1 ring-inset ring-rule hover:bg-tint hover:ring-ink-soft/50";
   return <button type="button" className={`${base} ${look} ${className}`} {...rest} />;
 }
 

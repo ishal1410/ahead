@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Newsreader, Hanken_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-const serif = Newsreader({ variable: "--font-serif", subsets: ["latin"], style: ["normal"], weight: ["400", "500"] });
+const serif = Newsreader({ variable: "--font-serif", subsets: ["latin"], style: ["normal", "italic"], weight: ["400", "500"] });
 const body = Hanken_Grotesk({ variable: "--font-body", subsets: ["latin"] });
 const code = IBM_Plex_Mono({ variable: "--font-code", subsets: ["latin"], weight: ["400", "500"] });
 
