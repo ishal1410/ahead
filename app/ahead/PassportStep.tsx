@@ -15,7 +15,7 @@ export type { Draft };
 
 type Tile = { state: "idle" | "running" | "done" | "error"; url?: string; error?: string; capped?: boolean };
 const lengthLabel: Record<Length, string> = { short: "Short", mid: "Shoulder", long: "Long" };
-const DEMO_PRIVACY = "This demo shows pre-rendered images of Maya. Nothing is uploaded and nothing is stored.";
+const DEMO_PRIVACY = "This demo shows pre-rendered images of Maya. Nothing is uploaded. Nothing is saved after you close this tab.";
 
 export function PassportStep({
   photoUrl,

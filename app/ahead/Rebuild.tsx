@@ -325,6 +325,9 @@ export function Rebuild({
                 <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-ink-soft">
                   <Swatch hex={passport.hairHex} label={`Saved: ${shadeFamily(passport.hairHex)}, ${lengthName[passport.hairLength].toLowerCase()}`} size="sm" />
                 </div>
+                <p className="mt-3 max-w-[60ch] text-[13px] leading-relaxed text-ink-soft">
+                  Wig shades are Ahead&apos;s colour-ring codes, set by eye from each product photo. The % is an approximate distance on the ring, not a measurement.
+                </p>
 
                 {wig && (
                   <div className="mt-6">
@@ -383,7 +386,7 @@ export function Rebuild({
                                 <span className="flex items-baseline gap-1.5">
                                   {/* 100 means the same colour-ring shade, not a pixel-perfect match: say so. */}
                                   <span className="font-display text-3xl leading-none">{w.match === 100 ? "Same" : `${w.match}%`}</span>
-                                  <span className="text-[13px] text-ink-soft">{w.match === 100 ? "ring shade" : "ring match"}</span>
+                                  <span className="text-[13px] text-ink-soft">{w.match === 100 ? "ring shade" : "approx. match"}</span>
                                 </span>
                                 <span aria-hidden className="mt-2.5 block h-[3px] overflow-hidden rounded-full bg-tint">
                                   <motion.span

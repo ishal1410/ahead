@@ -32,7 +32,7 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <motion.div variants={piece} className="grid grid-cols-[7.5rem_1fr] gap-3 py-2.5 print:grid-cols-[5.5rem_1fr] print:gap-2 print:py-[3px]">
+    <motion.div variants={piece} className="grid grid-cols-[7.5rem_1fr] gap-3 py-2.5 print:grid-cols-[5.5rem_1fr] print:gap-2 print:py-[2px]">
       <dt className="text-[13px] text-ink-soft print:text-[10.5px]">{label}</dt>
       <dd className="text-[15px] print:text-[11.5px]">{children}</dd>
     </motion.div>
@@ -94,11 +94,11 @@ export function MatchCard({
           <h2 className="mt-1 font-display text-[28px] leading-tight print:text-[22px]">Show this to your wig fitter.</h2>
         </motion.header>
 
-        <motion.div variants={staggerParent} className="grid grid-cols-2 gap-3 p-6 print:mx-auto print:w-[38%] print:gap-2 print:px-0 print:py-2">
+        <motion.div variants={staggerParent} className="grid grid-cols-2 gap-3 p-6 print:mx-auto print:w-[34%] print:gap-2 print:px-0 print:py-2">
           <motion.figure variants={photo}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={photoUrl} alt={`${holder} before treatment`} className="aspect-[3/4] w-full rounded-[14px] object-cover ring-1 ring-rule" />
-            <figcaption className="mt-2 text-[12px] text-ink-soft">Saved before treatment</figcaption>
+            <figcaption className="mt-2 text-[12px] text-ink-soft print:mt-1 print:text-[9.5px] print:leading-tight">Saved before treatment</figcaption>
           </motion.figure>
           <motion.figure variants={photo}>
             {lookWig ? (
@@ -110,7 +110,7 @@ export function MatchCard({
                 {look.wig ? "This try-on has expired. Refresh it in Rebuild." : "No wig chosen yet"}
               </div>
             )}
-            <figcaption className="mt-2 text-[12px] text-ink-soft">{wig ? wig.label : "Chosen wig"}</figcaption>
+            <figcaption className="mt-2 text-[12px] text-ink-soft print:mt-1 print:text-[9.5px] print:leading-tight">{wig ? wig.label : "Chosen wig"}</figcaption>
           </motion.figure>
         </motion.div>
 
@@ -136,7 +136,7 @@ export function MatchCard({
                   </span>
                 </Row>
                 <Row label="Length">{lengthName[wig.length]}</Row>
-                <Row label="Colour ring">{lookWig.match === 100 ? "Same shade as the saved hair" : `${lookWig.match}% match to the saved hair`}</Row>
+                <Row label="Colour ring">{lookWig.match === 100 ? "Same shade as the saved hair" : `approx. ${lookWig.match}% match to the saved hair`}</Row>
               </Group>
             )}
             <Group title="Brow guide">
@@ -166,7 +166,7 @@ export function MatchCard({
         {lookBrow && (
           <motion.figure variants={piece} className="border-t border-dashed border-rule px-6 py-4 print:flex print:items-center print:gap-3 print:px-5 print:py-2">
             {/* An eye-area crop a brow artist can actually read, not a thumbnail. */}
-            <div className="aspect-[5/2] w-full overflow-hidden rounded-[14px] ring-1 ring-rule print:w-[58%] print:shrink-0">
+            <div className="aspect-[5/2] w-full overflow-hidden rounded-[14px] ring-1 ring-rule print:w-[48%] print:shrink-0">
               <Photo src={lookBrow.url} alt={`Close-up of the saved brows drawn on ${whose} face, as a drawing guide`} closeUp />
             </div>
             <figcaption className="mt-2 text-[13px] leading-relaxed text-ink-soft print:mt-0 print:text-[10.5px]">
@@ -175,7 +175,15 @@ export function MatchCard({
           </motion.figure>
         )}
 
-        <motion.footer variants={piece} className="border-t border-rule px-6 py-3 text-[12px] text-ink-soft print:px-5 print:py-2">Cosmetic planning aid. Not medical advice.</motion.footer>
+        <motion.section variants={piece} aria-label="Bring to your fitting" className="border-t border-rule px-6 py-4 print:px-5 print:py-1.5">
+          <h3 className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-soft print:text-[9px]">Bring to your fitting</h3>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-[14px] leading-snug print:mt-0.5 print:space-y-0 print:text-[10px] print:leading-tight">
+            <li>A lock of hair cut from the top front, compared in natural light</li>
+            <li>Photos of your current hairstyle</li>
+            <li>Ask your doctor for a prescription for a &ldquo;cranial prosthesis&rdquo;. Some insurers cover part or all of the cost.</li>
+          </ul>
+          <p className="mt-2 text-[12px] text-ink-soft print:mt-0.5 print:text-[9px]">Advice from the American Cancer Society (cancer.org, &ldquo;Wigs for Hair Loss&rdquo;). Cosmetic planning aid. Not medical advice.</p>
+        </motion.section>
       </motion.article>
     </main>
   );

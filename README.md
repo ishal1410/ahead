@@ -11,6 +11,8 @@ Built for the YouCam API Skin AI & eCommerce VTO Hackathon.
 
 ## YouCam APIs used
 
+Two YouCam try-on APIs plus the File API:
+
 | API | Endpoint | Where |
 |---|---|---|
 | Makeup VTO — `eyebrows` category | `POST /s2s/v2.0/task/makeup-vto` | Draws three brow shapes in the tapped brow colour; later redraws the saved recipe, including on top of a wig render |
@@ -21,7 +23,7 @@ Renders chain: a wig result URL is passed as `src_file_url` to the eyebrow try-o
 
 ## Why not just wig try-on?
 
-Perfect Corp proved patients want wig try-on (Nao-Art, 2024). Ahead fixes the step before it: you can only match what you saved. Wigs are ranked by CIE76 ΔE between the hair colour the person tapped before treatment and each wig's measured colour, and the brow shape and colour become a reusable recipe.
+Perfect Corp and Nao-Art launched medical-wig try-on in Japan (2024). Ahead fixes the step before it: you can only match what you saved. Wigs are ranked by CIE76 ΔE between the hair colour the person tapped before treatment and each wig's ring shade (set by eye, like a retailer colour code), and the brow shape and colour become a reusable recipe.
 
 ## Run it
 
@@ -36,9 +38,20 @@ npm test                     # colour maths + render client tests
 
 ## Privacy and honesty
 
-- Photos are sent to the YouCam API to render try-ons. Ahead keeps the Look Passport only in the browser (localStorage + optional JSON download). There are no accounts and no database.
+- Photos pass through Ahead's server to the YouCam API to render try-ons and are not kept there. The Look Passport, including the photo, stays only in this browser (localStorage + optional JSON download). There are no accounts and no database.
 - Ahead never simulates or shows hair loss. It is a cosmetic planning aid, not medical advice.
 - Every face and wig image in this repo is AI-generated; prompts are logged in [`assets-src/PROVENANCE.md`](assets-src/PROVENANCE.md).
+
+## Evidence
+
+The landing-page facts and product claims, with verdicts and exact quotes, are in [`docs/research/EVIDENCE.md`](docs/research/EVIDENCE.md).
+
+## Limits
+
+- Maya is an AI-generated persona.
+- Wig ring shades are set by eye from product photos.
+- Colour read from a photo is approximate; bring a real lock of hair to the fitting.
+- Not medical advice.
 
 ## Safeguards
 

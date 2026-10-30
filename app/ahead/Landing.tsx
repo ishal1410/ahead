@@ -5,7 +5,7 @@ import { PassportPage } from "./PassportPage";
 import { Button } from "./ui";
 import { Reveal, Tilt, motionTokens, staggerChild, staggerParent } from "./motion";
 
-const PRIVACY = "Your photo is sent to the YouCam API to render try-ons. Ahead keeps your Look Passport only in this browser.";
+const PRIVACY = "Your photo passes through Ahead's server to the YouCam API to render try-ons, and is not kept there. Your Look Passport, including the photo, stays only in this browser.";
 
 const steps = [
   {
@@ -25,6 +25,30 @@ const steps = [
 const apis = [
   { name: "Makeup VTO, eyebrows", use: "Draws three brow shapes on your photo so you can find yours, then redraws your saved recipe." },
   { name: "AI Hairstyle VTO, hair transfer", use: "Shows each wig on your face, ranked on a colour ring against the hair shade you saved." },
+];
+
+const ACS_WIG = "https://www.cancer.org/cancer/managing-cancer/side-effects/hair-skin-nails/hair-loss/choosing-and-wearing-wig.html";
+
+// Each fact was read on its source page on 2026-10-30 (docs/research/EVIDENCE.md).
+const facts = [
+  {
+    stat: "About 65%",
+    body: "of people treated for cancer lose hair, a review of 36 studies found.",
+    source: "Dua et al., Psycho-Oncology, PubMed",
+    href: "https://pubmed.ncbi.nlm.nih.gov/26594010/",
+  },
+  {
+    stat: "2 to 3 weeks",
+    body: "after the first cycle is when hair loss usually starts, if it is going to happen.",
+    source: "American Cancer Society",
+    href: "https://www.cancer.org/cancer/managing-cancer/side-effects/hair-skin-nails/hair-loss/coping-with-hair-loss.html",
+  },
+  {
+    stat: "89% and 87%",
+    body: "of breast cancer survivors who had chemotherapy reported eyebrow and eyelash loss, in a Mayo Clinic registry survey of 838 people.",
+    source: "Mayo Clinic Breast Disease Registry, PubMed",
+    href: "https://pubmed.ncbi.nlm.nih.gov/39366882/",
+  },
 ];
 
 const inView = { initial: "hidden", whileInView: "visible", viewport: { once: true, margin: "-60px" } } as const;
@@ -160,6 +184,28 @@ export function Landing({
         </div>
       </section>
 
+      <section aria-labelledby="before" className="border-t border-rule">
+        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-8 lg:py-24">
+          <Reveal className="flex items-baseline gap-4">
+            <span aria-hidden className="font-mono text-[13px] tracking-[0.14em] text-ink-soft">03</span>
+            <h2 id="before" className="font-display text-4xl tracking-[-0.01em] sm:text-5xl">
+              Why before
+            </h2>
+          </Reveal>
+          <motion.ul variants={staggerParent} {...inView} className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
+            {facts.map((f) => (
+              <motion.li key={f.stat} variants={staggerChild} className="border-t border-rule pt-6">
+                <p className="font-display text-[32px] leading-none text-cover">{f.stat}</p>
+                <p className="mt-4 max-w-[38ch] leading-relaxed text-ink-soft">{f.body}</p>
+                <a href={f.href} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-[13px] underline decoration-rule underline-offset-4 transition-[text-decoration-color] duration-200 hover:decoration-ink">
+                  Source: {f.source}
+                </a>
+              </motion.li>
+            ))}
+          </motion.ul>
+        </div>
+      </section>
+
       <section aria-labelledby="why" className="mx-auto max-w-4xl px-4 py-24 text-center sm:px-8 lg:py-32">
         <Reveal>
           <h2 id="why" className="flex items-center justify-center gap-4 text-[15px] text-ink-soft">
@@ -168,13 +214,15 @@ export function Landing({
             <motion.span aria-hidden className="h-px w-10 origin-left bg-ink-soft/40" {...drawRule} />
           </h2>
           <p className="mt-8 text-balance font-display text-3xl leading-[1.22] tracking-[-0.01em] sm:text-[44px]">
-            Perfect Corp proved patients want wig try-on (Nao-Art, 2024). Ahead fixes the step before it:{" "}
+            Perfect Corp and Nao-Art launched medical-wig try-on in Japan (2024). Ahead fixes the step before it:{" "}
             <em className="text-cover">you can only match what you saved.</em>
           </p>
         </Reveal>
         <Reveal delay={0.12}>
           <p className="mx-auto mt-8 max-w-[52ch] leading-relaxed text-ink-soft">
-            A wig fitter works from memory and old photos. Ahead gives them the colour you measured, the brow shape you chose, and a card to hold in their hand.
+            The American Cancer Society suggests planning your wig before hair loss: take photos of your current hairstyle and save a lock of hair.{" "}
+            <a href={ACS_WIG} target="_blank" rel="noopener noreferrer" className="underline decoration-rule underline-offset-4 transition-[text-decoration-color] duration-200 hover:decoration-ink">(Source)</a>{" "}
+            Ahead keeps that photo with the ring shade you confirmed and the brow shape you chose, on a card your fitter can hold.
           </p>
           <div className="mt-10 flex justify-center">
             <Button onClick={onStart}>Start my Look Passport</Button>
