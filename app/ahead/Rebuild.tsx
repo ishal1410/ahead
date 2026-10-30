@@ -1,9 +1,9 @@
 "use client";
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import type { HatRef, WigRef } from "@/lib/catalog";
 import { rankByColour } from "@/lib/color";
-import { browLabel, shadeFamily, wigShade, type Passport } from "@/lib/passport";
-import { StaleError, isExpired } from "@/lib/render";
+import { browLabel, browTone, shadeFamily, wigShade, type Passport } from "@/lib/passport";
+import { StaleError, browRefreshSource, liveLook, type Look } from "@/lib/render";
 import { Button, Frame, PersonaNote, Photo, Swatch, ViewToggle } from "./ui";
 import { AnimatePresence, motion } from "motion/react";
 import { CountUp, motionTokens, springs, staggerChild, staggerParent } from "./motion";
@@ -14,13 +14,7 @@ const panelMotion = {
   exit: { opacity: 0, transition: { duration: motionTokens.duration.fast, ease: motionTokens.easing.sharp } },
 };
 
-// expiresAt: live result URLs are signed for ~2h (undefined = never, e.g. demo files).
-export interface Look {
-  wig?: { id: string; url: string; match: number; expiresAt?: number };
-  hat?: { id: string; url: string; onWig: boolean; expiresAt?: number };
-  // wigId: the wig these brows were actually drawn on (absent = drawn on the photo).
-  brow?: { url: string; wigId?: string; expiresAt?: number };
-}
+export type { Look };
 export interface Rendered { url: string; onWig: boolean; expiresAt?: number }
 type RenderFn = (feature: "wig" | "hat" | "brow", opts: { refId?: string; onUrl?: string; wigId?: string }) => Promise<Rendered>;
 
@@ -70,10 +64,11 @@ export function Rebuild({
   const demo = !!persona;
 
   // Signed result URLs expire; an expired one is never shown or chained, it is refreshed.
-  const wig = look.wig && !isExpired(look.wig.expiresAt) ? look.wig : undefined;
-  const brow = look.brow && !isExpired(look.brow.expiresAt) && (!look.brow.wigId || look.brow.wigId === wig?.id) ? look.brow : undefined;
-  const hat = look.hat && !isExpired(look.hat.expiresAt) ? look.hat : undefined;
-  const expired = (look.wig && !wig) || (look.brow && !brow);
+  const { wig, brow, hat, expired } = liveLook(look);
+  // Maya's demo speaks about her, never as "you".
+  const whose = persona ? `${persona}'s` : "your";
+  const Whose = persona ? `${persona}'s` : "Your";
+  const her = persona ? "her" : "your";
   const browsOnWig = !!(brow?.wigId && wig);
   const wigLabel = (id: string) => wigs.find((w) => w.id === id)?.label ?? "Wig";
 
@@ -82,14 +77,14 @@ export function Rebuild({
     tab === "brows" ? brow?.url ?? wig?.url ?? photoUrl : tab === "wigs" ? wig?.url ?? photoUrl : hat?.url ?? wig?.url ?? photoUrl;
   const stageCaption =
     tab === "brows" && brow
-      ? `Your saved brows, ${browLabel(passport.brow.preset).toLowerCase()}, drawn ${browsOnWig ? `with the ${wigLabel(brow.wigId!).toLowerCase()}` : "on your photo"}`
+      ? `${Whose} saved brows, ${browLabel(passport.brow.preset).toLowerCase()}, drawn ${browsOnWig ? `with the ${wigLabel(brow.wigId!).toLowerCase()}` : `on ${her} photo`}`
       : tab === "headwear" && hat
         ? `${hats.find((h) => h.id === hat.id)?.label ?? "Headwear"}${hat.onWig ? ", over your wig" : ""}`
         : wig && tab !== "brows"
-          ? `${wigLabel(wig.id)}, ${wig.match === 100 ? "the same colour-ring shade as" : `${wig.match}% colour-ring match to`} the hair you saved`
+          ? `${wigLabel(wig.id)}, ${wig.match === 100 ? "the same colour-ring shade as" : `${wig.match}% colour-ring match to`} the hair ${persona ? "she" : "you"} saved`
           : tab === "brows" && wig
             ? `${wigLabel(wig.id)}, brows not drawn on it yet`
-            : "Your baseline photo";
+            : `${Whose} baseline photo`;
 
   // On narrow screens the stage sits above the list: bring it into view when a render starts and lands.
   function revealStage() {
@@ -138,7 +133,8 @@ export function Rebuild({
   const refresh = () =>
     run("refresh", async () => {
       const w = await freshWig();
-      if (look.brow) await browsOn(w);
+      // Brows drawn on the photo stay on the photo; only wig brows are redrawn on the wig.
+      if (look.brow) await browsOn(browRefreshSource(look.brow, w));
     });
 
   const tryWig = (w: WigRef & { match: number }) =>
@@ -184,12 +180,12 @@ export function Rebuild({
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 tabIndex={-1} data-step-heading className="font-display text-4xl leading-tight tracking-[-0.01em] outline-none sm:text-5xl">
-            Rebuild your look
+            Rebuild {whose} look
           </h1>
           <p className="mt-3 max-w-[52ch] text-lg leading-relaxed text-ink-soft">Everything here starts from the passport {persona ? `${holder} saved` : "you saved"}.</p>
           {persona && <div className="mt-2"><PersonaNote name={persona} /></div>}
         </div>
-        <Button onClick={onCard}>Make my Match Card</Button>
+        <Button onClick={onCard}>Make {persona ? whose : "my"} Match Card</Button>
       </div>
 
       <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-12">
@@ -211,7 +207,8 @@ export function Rebuild({
                   </motion.div>
                 ) : showBrowCrop ? (
                   <motion.div key={`crop-${stage}`} {...panelMotion} className="col-start-1 row-start-1 size-full overflow-hidden">
-                    <Photo src={stage} alt={`${stageCaption}, close-up of the brows`} closeUp onFail={() => setStageFailed(stage)} />
+                    {/* Gentler zoom than the small tiles: the stage is large, so 1.75x would upscale the render past its pixels. */}
+                    <Photo src={stage} alt={`${stageCaption}, close-up of the brows`} closeUp zoom={1.35} onFail={() => setStageFailed(stage)} />
                   </motion.div>
                 ) : (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -287,9 +284,9 @@ export function Rebuild({
             <AnimatePresence mode="wait" initial={false}>
             {tab === "brows" && (
               <motion.div key="brows" {...panelMotion}>
-                <h2 className="font-display text-3xl tracking-[-0.01em]">Your brows, from your passport</h2>
+                <h2 className="font-display text-3xl tracking-[-0.01em]">{Whose} brows, from {her} passport</h2>
                 <p className="mt-3 max-w-[50ch] leading-relaxed text-ink-soft">
-                  Your saved shape and colour, drawn on your face. This is the guide you or a brow artist can redraw from.
+                  {Whose} saved shape and colour, drawn on {her} face. This is the guide {persona ? "she" : "you"} or a brow artist can redraw from.
                 </p>
                 <dl className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-3">
                   <div>
@@ -301,8 +298,8 @@ export function Rebuild({
                     <dd className="mt-1 text-lg">{passport.brow.thickness === 0 ? "As saved" : passport.brow.thickness}</dd>
                   </div>
                   <div>
-                    <dt className="sr-only">Colour</dt>
-                    <dd><Swatch hex={passport.brow.hex} label="Colour" /></dd>
+                    <dt className="text-[13px] text-ink-soft">Colour</dt>
+                    <dd className="mt-1"><Swatch hex={passport.brow.hex} label={browTone(passport.brow.hex)} size="sm" /></dd>
                   </div>
                 </dl>
                 <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -311,14 +308,12 @@ export function Rebuild({
                   </Button>
                   <span className="text-[14px] text-ink-soft">
                     {browsOnWig
-                      ? "Drawn with the wig you chose."
+                      ? `Drawn with the wig ${persona ? "she" : "you"} chose.`
                       : !wig
                         ? "Choose a wig first to see them together."
                         : brow
-                          ? demo
-                            ? "Shown on the photo: the demo has no brows pre-rendered on this wig."
-                            : "Shown on your photo. Draw them again to see them with the wig."
-                          : "They will be drawn on the wig you chose."}
+                          ? `Shown on ${her} photo, drawn before this wig was chosen. Draw them again to see them with the wig.`
+                          : `They will be drawn on the wig ${persona ? "she" : "you"} chose.`}
                   </span>
                 </div>
               </motion.div>
@@ -326,7 +321,7 @@ export function Rebuild({
 
             {tab === "wigs" && (
               <motion.div key="wigs" {...panelMotion}>
-                <h2 className="font-display text-3xl tracking-[-0.01em]">Closest to your hair first</h2>
+                <h2 className="font-display text-3xl tracking-[-0.01em]">Closest to {whose} hair first</h2>
                 <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-ink-soft">
                   <Swatch hex={passport.hairHex} label={`Saved: ${shadeFamily(passport.hairHex)}, ${lengthName[passport.hairLength].toLowerCase()}`} size="sm" />
                 </div>
@@ -450,106 +445,184 @@ export function Rebuild({
       </div>
 
       {tellOpen && wig && (
-        <CanYouTell photoUrl={photoUrl} wigUrl={wig.url} match={wig.match} whose={persona ? `${holder} saved` : "you saved"} onClose={() => setTellOpen(false)} />
+        <CanYouTell photoUrl={photoUrl} wigUrl={wig.url} match={wig.match} owner={persona ? `${holder}'s` : "your"} saver={persona ? `${holder} saved` : "you saved"} onClose={() => setTellOpen(false)} />
       )}
     </main>
   );
 }
 
-// The most important moment: two portraits, unlabelled, then the reveal.
-function CanYouTell({ photoUrl, wigUrl, match, whose, onClose }: { photoUrl: string; wigUrl: string; match: number; whose: string; onClose: () => void }) {
+// The most important moment, as a real test: the wig sits on a random side, the
+// person guesses, then both portraits are labelled. Nothing gives the answer away
+// before the guess, to the eye or to a screen reader.
+const SIDES = ["Left", "Right"] as const;
+const coin = () => (Math.random() < 0.5 ? 0 : 1);
+
+function CanYouTell({ photoUrl, wigUrl, match, owner, saver, onClose }: { photoUrl: string; wigUrl: string; match: number; owner: string; saver: string; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const [revealed, setRevealed] = useState(false);
+  const firstChoice = useRef<HTMLButtonElement>(null);
+  // The verdict mounts after the hint has faded out, so it takes focus as it mounts.
+  const focusVerdict = useCallback((el: HTMLDivElement | null) => el?.focus(), []);
+  const [wigSide, setWigSide] = useState(coin);
+  const [guess, setGuess] = useState<number | null>(null);
+  const [round, setRound] = useState(0);
+  const revealed = guess !== null;
+  const correct = guess === wigSide;
 
   useEffect(() => {
     if (ref.current && !ref.current.open) ref.current.showModal();
-    const t = setTimeout(() => setRevealed(true), 2000);
-    return () => clearTimeout(t);
   }, []);
+  // Focus follows the moment: the choices while guessing, the verdict once revealed.
+  useEffect(() => {
+    if (!revealed) firstChoice.current?.focus({ preventScroll: true });
+  }, [revealed, round]);
 
-  const sentence = match === 100
-    ? `Right is a wig. Same colour-ring shade as the hair ${whose}.`
-    : `Right is a wig. ${match}% colour-ring match to the hair ${whose}.`;
+  function again() {
+    setWigSide(coin());
+    setGuess(null);
+    setRound((r) => r + 1);
+  }
+
+  const sentence = `The ${SIDES[wigSide].toLowerCase()} one is the wig. ${match === 100 ? "Same colour-ring shade as" : `${match}% colour-ring match to`} the hair ${saver}.`;
+  const verdict = correct ? "You spotted it." : "You couldn't tell.";
   const words = sentence.split(" ");
-  const label = (text: string, i: number) => (
-    <motion.figcaption
-      aria-hidden={!revealed}
-      initial={false}
-      animate={revealed ? { opacity: 1, y: 0 } : { opacity: 0, y: motionTokens.distance.xs }}
-      transition={{ duration: motionTokens.duration.slow, ease: motionTokens.easing.smooth, delay: i * 0.12 }}
-      className="mt-3 text-center font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft sm:text-[12px]"
-    >
-      {text}
-    </motion.figcaption>
-  );
+  const portraits = [0, 1].map((i) => ({ src: i === wigSide ? wigUrl : photoUrl, isWig: i === wigSide }));
 
   return (
     <dialog
       ref={ref}
       onClose={onClose}
       aria-labelledby="tell-h"
+      aria-describedby="tell-q"
       className="m-auto max-h-[100dvh] w-full max-w-5xl overflow-y-auto bg-paper p-0 text-ink backdrop:backdrop-blur-sm sm:rounded-[20px]"
     >
       <div className="guilloche px-4 py-8 sm:px-10 sm:py-12">
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 id="tell-h" className="font-display text-4xl tracking-[-0.01em] sm:text-5xl">
-              Can you tell?
-            </h2>
-            {/* the two quiet seconds, measured by a hairline */}
-            <span aria-hidden className="mt-4 block h-px w-28 overflow-hidden bg-rule">
-              <span className="measure block h-full bg-cover" />
-            </span>
-          </div>
+          <h2 id="tell-h" className="font-display text-4xl tracking-[-0.01em] sm:text-5xl">
+            Can you tell?
+          </h2>
           <Button variant="quiet" onClick={() => ref.current?.close()}>Close</Button>
         </div>
+        <p id="tell-q" className="mt-3 max-w-[46ch] text-[15px] leading-relaxed text-ink-soft sm:text-lg">
+          One is {owner} own hair, saved before treatment. One is a wig. <span className="text-ink">Which one is the wig?</span>
+        </p>
 
-        {/* Width capped by viewport height so title, portraits and the reveal line share one screen. */}
-        <div className="mx-auto mt-8 grid max-w-[max(18rem,calc((100dvh-21rem)*1.45))] grid-cols-2 gap-3 sm:gap-8">
-          {[photoUrl, wigUrl].map((src, i) => (
-            <figure key={src} className="develop" style={{ animationDelay: `${i * 180}ms` }}>
-              <div
-                className={`rounded-[20px] bg-surface p-1.5 shadow-[var(--shadow)] ring-1 transition-[box-shadow] duration-[900ms] ease-calm sm:p-2.5 ${revealed && i ? "ring-2 ring-cover" : "ring-rule/70"}`}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt={revealed ? (i ? "Wearing the matched wig" : "Original photo, before treatment") : "Portrait"} className="aspect-[3/4] w-full rounded-[14px] object-cover" />
-              </div>
-              {label(i ? "Wig" : "Own hair, saved before", i)}
-            </figure>
-          ))}
+        {/* Width capped by viewport height so the question, portraits and the reveal share one screen. */}
+        <div role="group" aria-label="Which one is the wig?" className="mx-auto mt-6 grid max-w-[max(18rem,calc((100dvh-30rem)*1.45))] grid-cols-2 gap-3 sm:mt-8 sm:gap-8">
+          {portraits.map(({ src, isWig }, i) => {
+            const mine = guess === i;
+            return (
+              <figure key={`${round}-${i}`} className="develop m-0" style={{ animationDelay: `${i * 180}ms` }}>
+                <motion.button
+                  ref={i === 0 ? firstChoice : undefined}
+                  type="button"
+                  data-choice={i}
+                  onClick={() => !revealed && setGuess(i)}
+                  aria-disabled={revealed}
+                  aria-label={
+                    revealed
+                      ? `${SIDES[i]}: ${isWig ? "the wig" : `${owner} own hair, saved before treatment`}${mine ? ", your guess" : ""}`
+                      : `${SIDES[i]} portrait: this one is the wig`
+                  }
+                  whileHover={revealed ? undefined : { y: -motionTokens.distance.xs }}
+                  whileTap={revealed ? undefined : { scale: 0.985 }}
+                  transition={springs.snappy}
+                  className={`relative block w-full rounded-[20px] bg-surface p-1.5 text-left shadow-[var(--shadow)] ring-1 transition-[box-shadow] duration-[900ms] ease-calm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cover sm:p-2.5 ${revealed ? "cursor-default" : "cursor-pointer hover:ring-ink-soft/50"} ${revealed && isWig ? "ring-2 ring-cover" : "ring-rule/70"}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt="" className="aspect-[3/4] w-full rounded-[14px] object-cover" />
+                  <AnimatePresence>
+                    {mine && (
+                      <motion.span
+                        key="guess"
+                        aria-hidden
+                        initial={{ opacity: 0, y: motionTokens.distance.xs }}
+                        animate={{ opacity: 1, y: 0, transition: { duration: motionTokens.duration.normal, ease: motionTokens.easing.smooth } }}
+                        exit={{ opacity: 0, transition: { duration: motionTokens.duration.fast } }}
+                        className="absolute left-3 top-3 rounded-full bg-surface/90 px-2.5 py-1 text-[12px] text-ink shadow-sm backdrop-blur sm:left-4 sm:top-4 sm:text-[13px]"
+                      >
+                        Your guess
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.button>
+                {/* Before the guess: only the side. After: what each one is. */}
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.figcaption
+                    key={revealed ? "answer" : "side"}
+                    aria-hidden
+                    initial={{ opacity: 0, y: motionTokens.distance.xs }}
+                    animate={{ opacity: 1, y: 0, transition: { duration: motionTokens.duration.slow, ease: motionTokens.easing.smooth, delay: revealed ? i * 0.12 : 0 } }}
+                    exit={{ opacity: 0, transition: { duration: motionTokens.duration.fast, ease: motionTokens.easing.sharp } }}
+                    className={`mt-3 text-center font-mono text-[11px] uppercase tracking-[0.16em] sm:text-[12px] ${revealed && isWig ? "text-cover" : "text-ink-soft"}`}
+                  >
+                    {revealed ? (isWig ? "Wig" : "Own hair, saved before") : SIDES[i]}
+                  </motion.figcaption>
+                </AnimatePresence>
+              </figure>
+            );
+          })}
         </div>
 
-        <p aria-live="polite" className="sr-only">
-          {revealed ? sentence : ""}
-        </p>
-        {/* Visual reveal: the line arrives word by word, the match counts up. */}
-        <motion.p
-          aria-hidden
-          initial="hidden"
-          animate={revealed ? "visible" : "hidden"}
-          variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.06, delayChildren: 0.15 } } }}
-          className="mx-auto mt-10 min-h-[2.6em] max-w-[30ch] text-balance text-center font-display text-2xl leading-snug sm:text-[34px]"
-        >
-          {words.map((w, i) => (
-            <motion.span
-              key={i}
-              className="inline-block whitespace-pre"
-              variants={{
-                hidden: { opacity: 0, y: motionTokens.distance.sm, filter: "blur(4px)" },
-                visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: motionTokens.duration.slow, ease: motionTokens.easing.smooth } },
-              }}
-            >
-              {w === `${match}%` ? (
-                <span className="text-cover">
-                  <CountUp to={match} start={revealed} />%
-                </span>
-              ) : (
-                w
-              )}
-              {i < words.length - 1 ? " " : ""}
-            </motion.span>
-          ))}
-        </motion.p>
+        <div className="mx-auto mt-6 min-h-[7.5rem] max-w-[40ch] text-center sm:mt-8">
+          <AnimatePresence mode="wait" initial={false}>
+            {revealed ? (
+              <motion.div
+                key={`verdict-${round}`}
+                ref={focusVerdict}
+                tabIndex={-1}
+                data-verdict
+                className="outline-none focus:outline-none focus-visible:outline-none"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1, transition: { duration: motionTokens.duration.normal, ease: motionTokens.easing.smooth } }}
+                exit={{ opacity: 0, transition: { duration: motionTokens.duration.fast, ease: motionTokens.easing.sharp } }}
+              >
+                <span className="sr-only">{`${verdict} ${sentence}`}</span>
+                <p aria-hidden className="font-mono text-[12px] uppercase tracking-[0.16em] text-cover">{verdict}</p>
+                {/* The line arrives word by word; the match counts up. */}
+                <motion.p
+                  aria-hidden
+                  initial="hidden"
+                  animate="visible"
+                  variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.06, delayChildren: 0.15 } } }}
+                  className="mt-3 text-balance font-display text-2xl leading-snug sm:text-[34px]"
+                >
+                  {words.map((w, i) => (
+                    <motion.span
+                      key={i}
+                      className="inline-block whitespace-pre"
+                      variants={{
+                        hidden: { opacity: 0, y: motionTokens.distance.sm, filter: "blur(4px)" },
+                        visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: motionTokens.duration.slow, ease: motionTokens.easing.smooth } },
+                      }}
+                    >
+                      {w === `${match}%` ? (
+                        <span className="text-cover">
+                          <CountUp to={match} />%
+                        </span>
+                      ) : (
+                        w
+                      )}
+                      {i < words.length - 1 ? " " : ""}
+                    </motion.span>
+                  ))}
+                </motion.p>
+                <div className="mt-6 flex justify-center">
+                  <Button variant="quiet" onClick={again}>Shuffle and try again</Button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.p
+                key="hint"
+                className="text-[14px] text-ink-soft"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1, transition: { duration: motionTokens.duration.normal } }}
+                exit={{ opacity: 0, transition: { duration: motionTokens.duration.fast } }}
+              >
+                Tap the portrait you think is the wig. Look at the hairline and the parting.
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </dialog>
   );

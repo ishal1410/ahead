@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { BROW_PRESETS, type Length } from "@/lib/catalog";
-import { LENGTHS, type BrowPresetId, type Draft } from "@/lib/passport";
+import { LENGTHS, browSampleProblem, type BrowPresetId, type Draft } from "@/lib/passport";
 import { CappedError, StaleError } from "@/lib/render";
-import { samplePatch } from "@/lib/browser";
+import { radioKeyIndex, samplePatch } from "@/lib/browser";
 import { HAIR_RING, suggestShade } from "@/lib/hairChart";
 import { PassportPage } from "./PassportPage";
 import { Button, Frame, PersonaNote, Photo, ViewToggle } from "./ui";
@@ -65,7 +65,10 @@ export function PassportStep({
     const fy = (e.clientY - r.top) / r.height;
     try {
       const hex = samplePatch(img, fx, fy);
-      setSampleError(undefined);
+      // A brow tap that reads as skin is refused gently instead of saved as the brow colour.
+      const problem = target === "brow" ? browSampleProblem(hex) : undefined;
+      setSampleError(problem);
+      if (problem) return;
       if (target === "hair") {
         // A tap only suggests a ring shade; the person confirms it on the ring below.
         setDraft({ ...draft, hairHex: suggestShade(hex).hex, hairAt: [fx, fy] });
@@ -101,6 +104,17 @@ export function PassportStep({
   function imageFailed(id: BrowPresetId) {
     setTiles((t) => ({ ...t, [id]: { state: "error", error: "This image didn't load." } }));
     if (draft.browPreset === id) setDraft({ ...draft, browPreset: undefined });
+  }
+
+  const ringRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const checkedRing = HAIR_RING.findIndex((s) => s.hex === draft.hairHex);
+  const ringTab = checkedRing < 0 ? 0 : checkedRing;
+  function ringKey(e: React.KeyboardEvent) {
+    const next = radioKeyIndex(e.key, ringTab, HAIR_RING.length);
+    if (next < 0) return;
+    e.preventDefault();
+    setDraft({ ...draft, hairHex: HAIR_RING[next].hex });
+    ringRefs.current[next]?.focus();
   }
 
   const list = Object.values(tiles);
@@ -193,19 +207,24 @@ export function PassportStep({
                   : "Tap the fullest part of one brow.")}
           </p>
           <fieldset className="mt-5">
-            <legend className="text-[15px] font-medium">Confirm your hair shade on the colour ring</legend>
+            <legend className="text-[15px] font-medium">Confirm {persona ? `${persona}'s` : "your"} hair shade on the colour ring</legend>
             <p className="mt-1 max-w-[52ch] text-[13px] leading-relaxed text-ink-soft">
-              A photo can&apos;t measure hair colour exactly; light changes it. {draft.hairHex ? "We marked the shade closest to your tap." : "Tap your hair, or pick a shade."} Choose the one that matches your hair in daylight.
+              A photo can&apos;t measure hair colour exactly; light changes it. {draft.hairHex ? `We marked the shade closest to ${persona ? "her" : "your"} tap.` : "Tap your hair, or pick a shade."} Choose the one that matches {persona ? "her" : "your"} hair in daylight.
             </p>
-            <div role="radiogroup" aria-label="Hair colour ring" className="mt-3 flex flex-wrap gap-2">
-              {HAIR_RING.map((s) => {
+            {/* Roving tabindex: one tab stop; arrows move and select, Home/End jump. */}
+            <div role="radiogroup" aria-label="Hair colour ring" onKeyDown={ringKey} className="mt-3 flex flex-wrap gap-2">
+              {HAIR_RING.map((s, i) => {
                 const on = draft.hairHex === s.hex;
                 return (
                   <button
                     key={s.id}
+                    ref={(el) => {
+                      ringRefs.current[i] = el;
+                    }}
                     type="button"
                     role="radio"
                     aria-checked={on}
+                    tabIndex={i === ringTab ? 0 : -1}
                     onClick={() => setDraft({ ...draft, hairHex: s.hex })}
                     className={`flex items-center gap-2 rounded-full border py-1.5 pl-1.5 pr-3 text-[13px] transition-colors ${on ? "border-cover bg-tint text-ink" : "border-rule text-ink-soft hover:border-ink-soft"}`}
                   >
@@ -370,12 +389,16 @@ export function PassportStep({
             initial={{ y: motionTokens.distance.lg }}
             animate={{ y: 0, transition: { duration: motionTokens.duration.normal, ease: motionTokens.easing.smooth } }}
             exit={{ opacity: 0, transition: { duration: motionTokens.duration.fast } }}
-            className="no-print sticky bottom-3 z-20 mt-6 flex flex-col gap-3 rounded-[20px] bg-surface/95 p-3 shadow-[var(--shadow)] ring-1 ring-rule/70 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:pl-6"
+            data-next-bar
+            className="no-print sticky bottom-3 z-20 mt-6 flex items-center justify-between gap-2 rounded-full bg-surface/95 p-1.5 shadow-[var(--shadow)] ring-1 ring-rule/70 backdrop-blur sm:gap-3 sm:rounded-[20px] sm:p-3 sm:pl-6"
           >
             <p className="hidden text-[14px] text-ink-soft sm:block">Passport saved. Next: see {persona ? "her" : "your"} brows and wigs.</p>
-            <div className="flex flex-col-reverse gap-2 sm:flex-row">
-              <Button variant="quiet" onClick={onDownload}>Download passport (JSON)</Button>
-              <Button onClick={onContinue}>Continue to rebuild</Button>
+            <div className="flex w-full gap-2 sm:w-auto">
+              <Button variant="quiet" onClick={onDownload} aria-label="Download passport (JSON)" className="px-4 sm:px-6">
+                <span className="sm:hidden">JSON</span>
+                <span className="hidden sm:inline">Download passport (JSON)</span>
+              </Button>
+              <Button onClick={onContinue} className="flex-1 sm:flex-none">Continue to rebuild</Button>
             </div>
           </motion.div>
         )}

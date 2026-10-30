@@ -55,3 +55,12 @@ export function downloadText(name: string, text: string, type = "application/jso
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+// Radiogroup keys (WAI-ARIA): arrows move and wrap, Home/End jump. -1 = not ours.
+export function radioKeyIndex(key: string, i: number, n: number): number {
+  if (key === "ArrowRight" || key === "ArrowDown") return (i + 1) % n;
+  if (key === "ArrowLeft" || key === "ArrowUp") return (i - 1 + n) % n;
+  if (key === "Home") return 0;
+  if (key === "End") return n - 1;
+  return -1;
+}

@@ -56,12 +56,14 @@ export function Photo({
   src,
   alt,
   closeUp = false,
+  zoom = BROW_CROP.scale,
   className = "",
   onFail,
 }: {
   src: string;
   alt: string;
   closeUp?: boolean;
+  zoom?: number;
   className?: string;
   onFail?: () => void;
 }) {
@@ -86,7 +88,7 @@ export function Photo({
       style={{
         objectPosition: `50% ${BROW_CROP.y}%`,
         transformOrigin: `50% ${BROW_CROP.y}%`,
-        transform: closeUp ? `scale(${BROW_CROP.scale})` : undefined,
+        transform: closeUp ? `scale(${zoom})` : undefined,
       }}
     />
   );

@@ -124,6 +124,29 @@ export async function renderFromPhoto(
 export const RESULT_TTL_MS = 100 * 60 * 1000;
 export const isExpired = (expiresAt: number | undefined, now = Date.now()) => expiresAt !== undefined && now >= expiresAt;
 
+// The looks tried on in Rebuild. expiresAt: live result URLs are signed for ~2h
+// (undefined = never, e.g. demo files). brow.wigId: the wig these brows were drawn
+// on (absent = drawn on the photo).
+export interface Look {
+  wig?: { id: string; url: string; match: number; expiresAt?: number };
+  hat?: { id: string; url: string; onWig: boolean; expiresAt?: number };
+  brow?: { url: string; wigId?: string; expiresAt?: number };
+}
+
+// What can be shown right now. Brows drawn on another wig are hidden, not "expired".
+export function liveLook(look: Look, now = Date.now()) {
+  const wig = look.wig && !isExpired(look.wig.expiresAt, now) ? look.wig : undefined;
+  const brow = look.brow && !isExpired(look.brow.expiresAt, now) && (!look.brow.wigId || look.brow.wigId === wig?.id) ? look.brow : undefined;
+  const hat = look.hat && !isExpired(look.hat.expiresAt, now) ? look.hat : undefined;
+  const expired = !!((look.wig && !wig) || (look.brow && isExpired(look.brow.expiresAt, now)));
+  return { wig, brow, hat, expired };
+}
+
+// Refreshing brows redraws them where they were: on the wig only if they were on a wig.
+export function browRefreshSource<W>(brow: Look["brow"], wig: W | undefined): W | undefined {
+  return brow?.wigId ? wig : undefined;
+}
+
 // One cache for every try-on in a session: the in-flight promise is shared (two
 // clicks, or a remounted screen, never spend twice), entries expire with their
 // URLs, failures are not kept, and reset() makes anything still running stale.
@@ -134,6 +157,13 @@ export function createRenderCache<T>({ now = Date.now, ttlMs = RESULT_TTL_MS }: 
     reset() {
       epoch++;
       entries.clear();
+    },
+    // Any other async step of a session (e.g. the photo upload): StaleError if reset() ran meanwhile.
+    async guard<U>(p: Promise<U>): Promise<U> {
+      const mine = epoch;
+      const v = await p;
+      if (epoch !== mine) throw new StaleError();
+      return v;
     },
     run(key: string, fn: () => Promise<T>): Promise<{ value: T; expiresAt: number }> {
       const mine = epoch;

@@ -1,22 +1,25 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { HATS, WIGS } from "@/lib/catalog";
-import { STORAGE_KEY, draftFromPassport, parsePassport, type BrowPresetId, type Draft, type Passport } from "@/lib/passport";
+import {
+  SESSION_KEY, STORAGE_KEY, draftFromPassport, parsePassport, parseSessionState, popTarget, resumeTarget,
+  type AppStep, type BrowPresetId, type Draft, type Passport, type Resume, type SessionState,
+} from "@/lib/passport";
 import {
   CappedError, RenderError, StaleError, createRenderCache, demoBrowOnWig, loadManifest, renderDemo, renderFromPhoto, renderLive, uploadPhoto,
-  type DemoManifest, type Feature,
+  type DemoManifest, type Feature, type Look,
 } from "@/lib/render";
 import { dataUrlToBlob, downloadText, loadImage, toJpegBlob, toJpegDataUrl } from "@/lib/browser";
 import { Landing } from "./Landing";
 import { Capture } from "./Capture";
 import { PassportStep } from "./PassportStep";
-import { Rebuild, type Look, type Rendered } from "./Rebuild";
+import { Rebuild, type Rendered } from "./Rebuild";
 import { MatchCard } from "./MatchCard";
 import { Button } from "./ui";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { motionTokens } from "./motion";
 
-type Step = "landing" | "capture" | "passport" | "rebuild" | "card";
+type Step = AppStep;
 const STEPS: Step[] = ["landing", "capture", "passport", "rebuild", "card"];
 interface Session {
   mode: "live" | "demo";
@@ -97,33 +100,58 @@ export function AheadApp() {
     [go, resetSession],
   );
 
+  // Which session this tab is in (demo or saved), so refresh and Back/Forward stay in it.
+  const hydrated = useRef(false);
+  const follow = useRef<(r: Resume, stored?: SessionState<Look> | null) => void>(() => {});
+  follow.current = (r, stored) => {
+    if (r.to === "go") return go(r.step, "replace");
+    if (r.to === "demo") return void startDemo(r.step, stored?.passport, stored?.look, "replace");
+    const sv = live.current.saved;
+    if (!sv) return go("landing", "replace");
+    restoreSaved(sv, r.step, "replace");
+    if (r.restoreLook && stored?.look) setLook(stored.look);
+  };
+
   // Saved passport (client only), the step in the URL, and the demo manifest for the landing specimen.
   useEffect(() => {
     let p: Passport | null = null;
+    let stored: SessionState<Look> | null = null;
     try {
       p = parsePassport(localStorage.getItem(STORAGE_KEY));
       setSaved(p);
+      live.current.saved = p;
+      stored = parseSessionState<Look>(sessionStorage.getItem(SESSION_KEY));
     } catch {
       /* storage blocked: the app still works, it just can't remember */
     }
-    const want = stepFromUrl();
-    if (p && (want === "passport" || want === "rebuild" || want === "card")) restoreSaved(p, want, "replace");
-    else go(want === "capture" ? "capture" : "landing", "replace");
-    loadManifest().then(setManifest);
-  }, [go, restoreSaved]);
+    follow.current(resumeTarget(stepFromUrl(), stored, p), stored);
+    hydrated.current = true;
+    loadManifest().then((m) => m && setManifest((cur) => cur ?? m));
+  }, []);
 
-  // Back / Forward: follow the URL when the state allows it, otherwise land gracefully.
+  // Back / Forward: follow the URL inside the current session; only with no session use the saved one.
   useEffect(() => {
     function onPop() {
-      const want = stepFromUrl();
       const { session: s, passport: p, saved: sv } = live.current;
-      if (want === "landing" || want === "capture" || (s && (want === "passport" || p))) return go(want, "replace");
-      if (sv) return restoreSaved(sv, want, "replace");
-      go("landing", "replace");
+      follow.current(popTarget(stepFromUrl(), !!s, !!p, !!sv));
     }
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, [go, restoreSaved]);
+  }, []);
+
+  // Remember the session (and the looks tried on) for this tab, so a reload restores it.
+  useEffect(() => {
+    if (!hydrated.current) return;
+    let state: SessionState<Look> | null = null;
+    if (session?.mode === "demo") state = { kind: "demo", passport: passport ?? undefined, look };
+    else if (session && passport && saved?.savedAt === passport.savedAt) state = { kind: "saved", savedAt: passport.savedAt, look };
+    try {
+      if (state) sessionStorage.setItem(SESSION_KEY, JSON.stringify(state));
+      else if (session) sessionStorage.removeItem(SESSION_KEY);
+    } catch {
+      /* storage blocked: a reload starts over */
+    }
+  }, [session, passport, saved, look]);
 
   // Runs when the next screen mounts (after the old one has faded out): start it at
   // the top and move focus to its heading so screen readers hear the change.
@@ -197,15 +225,25 @@ export function AheadApp() {
     go("capture");
   }
 
-  async function startDemo() {
+  // Also restores a demo after a reload (to, p, l come from this tab's session record).
+  async function startDemo(to: Step = "passport", p?: Passport, l?: Look, mode: "push" | "replace" = "push") {
     setDemoState("loading");
     const m = manifest ?? (await loadManifest());
-    if (!m) return setDemoState("missing");
+    if (!m) {
+      setDemoState("missing");
+      if (mode === "replace") go("landing", "replace");
+      return;
+    }
     setManifest(m);
     setDemoState("idle");
     resetSession({ mode: "demo", photoUrl: m.persona.photo });
-    setDraftRaw({ hairHex: m.passport.hairHex, browHex: m.passport.brow.hex, hairLength: m.passport.hairLength });
-    go("passport");
+    if (p) {
+      setDraftRaw(draftFromPassport(p));
+      setPassport(p);
+      live.current.passport = p;
+      if (l) setLook(l);
+    } else setDraftRaw({ hairHex: m.passport.hairHex, browHex: m.passport.brow.hex, hairLength: m.passport.hairLength });
+    go(p ? to : "passport", mode);
   }
 
   async function confirmPhoto(url: string) {
@@ -213,7 +251,9 @@ export function AheadApp() {
     setUploadError(undefined);
     try {
       const blob = await toJpegBlob(await loadImage(url), 1024);
-      const id = await uploadPhoto(blob);
+      // A demo or new session started while uploading owns the screen now: drop this result.
+      const id = await cache.current.guard(uploadPhoto(blob));
+      if (live.current.step !== "capture") return;
       // A different photo is a new session: the old draft, passport and looks don't belong to it.
       const s = live.current.session;
       if (s?.photoUrl !== url || s.mode !== "live") resetSession({ mode: "live", photoUrl: url });
@@ -222,6 +262,7 @@ export function AheadApp() {
       setCaptureNote(undefined);
       go("passport");
     } catch (e) {
+      if (e instanceof StaleError) return;
       setUploadError(e instanceof Error ? e.message : "Upload failed. Please try again.");
     } finally {
       setUploading(false);
@@ -315,7 +356,7 @@ export function AheadApp() {
         <div role="alert" className="no-print mx-auto mt-4 flex w-full max-w-6xl flex-col gap-3 px-4 sm:px-8">
           <div className="flex flex-col gap-3 rounded-[20px] bg-tint p-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-[15px]">{capped}</p>
-            <Button onClick={startDemo}>See Maya&apos;s demo</Button>
+            <Button onClick={() => startDemo()}>See Maya&apos;s demo</Button>
           </div>
         </div>
       )}
@@ -330,7 +371,7 @@ export function AheadApp() {
         exit={{ opacity: 0, y: -motionTokens.distance.xs, transition: { duration: motionTokens.duration.fast, ease: motionTokens.easing.sharp } }}
       >
         {step === "landing" && (
-          <Landing onStart={startLive} onDemo={startDemo} demoState={demoState} saved={saved} onOpenSaved={openSaved} specimenPhoto={manifest?.persona.photo} specimen={manifest?.passport} />
+          <Landing onStart={startLive} onDemo={() => startDemo()} demoState={demoState} saved={saved} onOpenSaved={openSaved} specimenPhoto={manifest?.persona.photo} specimen={manifest?.passport} />
         )}
         {step === "capture" && <Capture onConfirm={confirmPhoto} busy={uploading} error={uploadError} note={captureNote} />}
         {step === "passport" && session && (
@@ -342,7 +383,7 @@ export function AheadApp() {
             draft={draft}
             setDraft={setDraft}
             renderBrow={(preset, hex) => render("brow", { brow: { preset, hex, thickness: 0, intensity: 80 } }).then((r) => r.url)}
-            onDemo={startDemo}
+            onDemo={() => startDemo()}
             onSave={savePassport}
             savedAt={passport?.savedAt}
             onDownload={() => passport && downloadText("look-passport.json", JSON.stringify(passport, null, 2))}

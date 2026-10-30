@@ -66,6 +66,11 @@ body {
   outline-offset: 3px;
   border-radius: 6px;
 }
+/* Programmatic focus targets (headings, the Can-you-tell verdict) are not controls: no ring.
+   Unlayered, so Tailwind's layered outline-none utilities can't override the rule above. */
+[tabindex="-1"]:focus-visible {
+  outline: none;
+}
 
 ::selection {
   background: var(--tint);
@@ -149,9 +154,6 @@ body {
 @media (prefers-color-scheme: dark) { .shimmer::before { background: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / 0.08) 50%, transparent 80%); } }
 @keyframes sweep { to { transform: translateX(100%); } }
 
-/* "Can you tell?": a hairline measures the two quiet seconds before the reveal. */
-@keyframes measure { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-.measure { transform-origin: left; animation: measure 2000ms linear both; }
 dialog[open] { animation: enter 500ms var(--ease-calm) both; }
 dialog[open]::backdrop { animation: fade 400ms var(--ease-calm) both; }
 @keyframes fade { from { opacity: 0; } }

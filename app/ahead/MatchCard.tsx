@@ -2,9 +2,8 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import type { HatRef, WigRef } from "@/lib/catalog";
-import { browLabel, qrPayload, shadeFamily, wigShade, type Passport } from "@/lib/passport";
-import { isExpired } from "@/lib/render";
-import type { Look } from "./Rebuild";
+import { browLabel, browTone, qrPayload, shadeFamily, wigShade, type Passport } from "@/lib/passport";
+import { liveLook, type Look } from "@/lib/render";
 import { Button, Photo } from "./ui";
 import { motion } from "motion/react";
 import { motionTokens, staggerChild, staggerParent } from "./motion";
@@ -61,8 +60,7 @@ export function MatchCard({
 }) {
   const [qr, setQr] = useState<string>();
   // Expired signed URLs are never printed as broken images.
-  const lookWig = look.wig && !isExpired(look.wig.expiresAt) ? look.wig : undefined;
-  const lookBrow = look.brow && !isExpired(look.brow.expiresAt) && (!look.brow.wigId || look.brow.wigId === lookWig?.id) ? look.brow : undefined;
+  const { wig: lookWig, brow: lookBrow } = liveLook(look);
   const wig = lookWig && wigs.find((w) => w.id === lookWig.id);
   const hat = look.hat && hats.find((h) => h.id === look.hat!.id);
   const whose = persona ? `${holder}'s` : "your";
@@ -78,7 +76,7 @@ export function MatchCard({
       <div className="no-print flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 tabIndex={-1} data-step-heading className="font-display text-4xl leading-tight tracking-[-0.01em] outline-none sm:text-5xl">
-            Your Match Card
+            {persona ? `${holder}'s` : "Your"} Match Card
           </h1>
           <p className="mt-3 max-w-[52ch] text-lg leading-relaxed text-ink-soft">
             Print it, or save it as a PDF from the print dialog, and bring it to your wig fitter.
@@ -146,7 +144,7 @@ export function MatchCard({
               <Row label="Colour">
                 <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
                   <Dot hex={passport.brow.hex} />
-                  <span>{shadeFamily(passport.brow.hex)}</span>
+                  <span>{browTone(passport.brow.hex)}</span>
                   <span className="font-mono text-ink-soft">{passport.brow.hex}</span>
                 </span>
               </Row>

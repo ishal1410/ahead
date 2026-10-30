@@ -25,6 +25,9 @@ export const HAIR_RING: RingShade[] = [
   { id: "dark-blonde", name: "Dark blonde", hex: "#9A7650" },
   { id: "honey-blonde", name: "Honey blonde", hex: "#C2925F" },
   { id: "auburn", name: "Auburn", hex: "#7A2E17" },
+  // Bright copper-red sits far from the browns: with only "Auburn" on the ring,
+  // a copper wig scored 61% for a chestnut brunette, above espresso.
+  { id: "copper", name: "Copper", hex: "#A4441E" },
   { id: "silver", name: "Silver grey", hex: "#A9A4A1" },
 ];
 

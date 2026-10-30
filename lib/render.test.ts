@@ -60,7 +60,7 @@ describe("renderDemo", () => {
 
 describe("passport", () => {
   const p: Passport = {
-    version: 1, savedAt: "2026-10-29T00:00:00.000Z", hairHex: "#5A3A22", hairLength: "mid",
+    version: 1, savedAt: "2026-10-29T00:00:00.000Z", hairHex: "#5C3420", hairLength: "mid",
     brow: { preset: "SoftArch1", hex: "#3B2A1E", thickness: 0, intensity: 80 }, photoDataUrl: "data:image/jpeg;base64,AAAA",
   };
   it("round-trips through storage and rejects tampered data", () => {
@@ -72,12 +72,12 @@ describe("passport", () => {
   it("keeps the photo out of the QR payload", () => {
     const q = JSON.parse(qrPayload(p));
     expect(q.photoDataUrl).toBeUndefined();
-    expect(q.hairHex).toBe("#5A3A22");
+    expect(q.hairHex).toBe("#5C3420");
   });
   it("writes fixed-width MRZ lines that encode the recipe", () => {
     const [a, b] = mrzLines(p);
     expect(a).toHaveLength(36);
-    expect(a.startsWith("P<AHD<HAIR<5A3A22<MID")).toBe(true);
+    expect(a.startsWith("P<AHD<HAIR<5C3420<MID")).toBe(true);
     expect(b.startsWith("BROW<SOFTARCH1<3B2A1E<T0<I80")).toBe(true);
   });
   it("names shades with the colour ring's vocabulary", () => {

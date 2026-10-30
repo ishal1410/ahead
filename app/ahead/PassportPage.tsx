@@ -1,6 +1,6 @@
 // The signature element: the Look Passport rendered as a document page.
 import type { Length } from "@/lib/catalog";
-import { browLabel, mrzLines, shadeFamily } from "@/lib/passport";
+import { browLabel, browTone, mrzLines, shadeFamily } from "@/lib/passport";
 import { Swatch } from "./ui";
 
 export interface PassportFields {
@@ -50,12 +50,12 @@ export function PassportPage({ f, compact = false }: { f: PassportFields; compac
           </div>
           {/* Stamped across the photo corner, like a real visa stamp: never over a field value or the MRZ. */}
           {saved && (
-            <div aria-hidden className="stamp pointer-events-none absolute -bottom-4 -right-1 grid size-[64px] place-items-center rounded-full border-2 border-cover bg-surface/70 text-center text-cover opacity-90 sm:size-[72px]">
-              <span className="font-display text-[13px] leading-tight">
+            <div aria-hidden className="stamp pointer-events-none absolute -bottom-7 -right-3 grid size-[54px] place-items-center rounded-full border-2 border-cover bg-surface/70 text-center text-cover opacity-90 sm:-bottom-4 sm:-right-1 sm:size-[72px]">
+              <span className="font-display text-[11px] leading-tight sm:text-[13px]">
                 Saved
                 <br />
                 {/* Local date, so the stamp agrees with the "Saved" field (toISOString is UTC). */}
-                <span className="font-mono text-[9px]">{saved.toLocaleDateString("en-CA")}</span>
+                <span className="font-mono text-[7.5px] sm:text-[9px]">{saved.toLocaleDateString("en-CA")}</span>
               </span>
             </div>
           )}
@@ -69,7 +69,7 @@ export function PassportPage({ f, compact = false }: { f: PassportFields; compac
           </Field>
           <Field label="Hair length">{f.hairLength ? lengthName[f.hairLength] : "Not yet"}</Field>
           <Field label="Brow colour">
-            <Swatch hex={f.browHex} label={f.browHex ? shadeFamily(f.browHex) : "Tap your brow"} size="sm" />
+            <Swatch hex={f.browHex} label={f.browHex ? browTone(f.browHex) : "Tap your brow"} size="sm" />
           </Field>
           <Field label="Brow shape">{f.browPreset ? browLabel(f.browPreset) : "Not yet"}</Field>
         </dl>
