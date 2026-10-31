@@ -25,6 +25,7 @@ const steps = [
 const apis = [
   { name: "Makeup VTO, eyebrows", use: "Draws three brow shapes on your photo so you can find yours, then redraws your saved recipe." },
   { name: "AI Hairstyle VTO, hair transfer", use: "Shows each wig on your face, ranked on a colour ring against the hair shade you saved." },
+  { name: "AI Hair Color", use: "Recolours the wig you chose to your saved ring shade, so you see the style in your own colour." },
 ];
 
 const ACS_WIG = "https://www.cancer.org/cancer/managing-cancer/side-effects/hair-skin-nails/hair-loss/choosing-and-wearing-wig.html";
@@ -159,15 +160,17 @@ export function Landing({
           <Reveal>
             <span aria-hidden className="font-mono text-[13px] tracking-[0.14em] opacity-75">02</span>
             <h2 id="apis" className="mt-3 font-display text-4xl tracking-[-0.01em] sm:text-5xl">
-              Two YouCam APIs, one look
+              Three YouCam APIs, one look
             </h2>
             <p className="mt-5 max-w-[40ch] leading-relaxed opacity-85">
-              Each render can build on the last: your saved brows are drawn on top of the wig you chose, so you see the whole look together.
+              Each render builds on the last: the wig you chose is recoloured to your saved shade, then your saved brows are drawn on top, so you see the whole look together.
             </p>
             <p aria-hidden className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-2 font-mono text-[12px] uppercase tracking-[0.12em] opacity-80">
               <span>Photo</span>
               <span className="h-px w-6 bg-on-cover/50" />
               <span>Wig</span>
+              <span className="h-px w-6 bg-on-cover/50" />
+              <span>Your shade</span>
               <span className="h-px w-6 bg-on-cover/50" />
               <span>Brows on the wig</span>
             </p>
@@ -175,7 +178,7 @@ export function Landing({
           <motion.dl variants={staggerParent} {...inView} className="grid">
             {apis.map((a, i) => (
               <motion.div key={a.name} variants={staggerChild} className="grid grid-cols-[2.5rem_1fr] gap-x-4 border-t border-on-cover/25 py-8 last:border-b">
-                <span aria-hidden className="pt-2 font-mono text-[13px] opacity-70">{i === 0 ? "I" : "II"}</span>
+                <span aria-hidden className="pt-2 font-mono text-[13px] opacity-70">{["I", "II", "III"][i]}</span>
                 <div>
                   <dt className="font-display text-[28px] leading-tight sm:text-[32px]">{a.name}</dt>
                   <dd className="mt-3 max-w-[48ch] leading-relaxed opacity-85">{a.use}</dd>

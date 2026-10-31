@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateA
 import type { HatRef, WigRef } from "@/lib/catalog";
 import { rankByColour } from "@/lib/color";
 import { browLabel, browTone, shadeFamily, wigShade, type Passport } from "@/lib/passport";
-import { StaleError, browRefreshSource, liveLook, type Look } from "@/lib/render";
+import { FITTING_MAX, StaleError, browRefreshSource, fittingList, liveLook, toggleFitting, type Look } from "@/lib/render";
 import { Button, Frame, PersonaNote, Photo, Swatch, ViewToggle } from "./ui";
 import { AnimatePresence, motion } from "motion/react";
 import { CountUp, motionTokens, springs, staggerChild, staggerParent } from "./motion";
@@ -70,6 +70,8 @@ export function Rebuild({
   const Whose = persona ? `${persona}'s` : "Your";
   const her = persona ? "her" : "your";
   const browsOnWig = !!(brow?.wigId && wig);
+  const fitting = fittingList(look.fitting, wigs);
+  const toggleFit = (id: string) => setLook((l) => ({ ...l, fitting: toggleFitting(fittingList(l.fitting, wigs), id) }));
   const wigLabel = (id: string) => wigs.find((w) => w.id === id)?.label ?? "Wig";
 
   const showBrowCrop = tab === "brows" && !!brow && closeUp;
@@ -154,6 +156,7 @@ export function Rebuild({
         wig: { id: w.id, url: r.url, match: w.match, expiresAt: r.expiresAt },
         brow: l.brow?.wigId ? undefined : l.brow,
         hat: l.hat?.onWig ? undefined : l.hat,
+        fitting: l.fitting,
       }));
     });
 
@@ -349,6 +352,10 @@ export function Rebuild({
                 <p className="mt-3 max-w-[60ch] text-[13px] leading-relaxed text-ink-soft">
                   Wig shades are Ahead&apos;s colour-ring codes, set by eye from each product photo. The % is an approximate distance on the ring, not a measurement.
                 </p>
+                <p data-fitting-count className="mt-2 text-[14px]">
+                  Fitting list: {fitting.length} of {FITTING_MAX}.{" "}
+                  <span className="text-ink-soft">{fitting.length ? `These go on ${whose} Match Card for the fitter.` : "Shortlist up to three to compare at the fitting."}</span>
+                </p>
 
                 {wig && (
                   <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -378,15 +385,17 @@ export function Rebuild({
                     {ranked.map((w) => {
                       const chosen = wig?.id === w.id;
                       const loading = busy === `wig:${w.id}`;
+                      const onList = fitting.includes(w.id);
+                      const full = !onList && fitting.length >= FITTING_MAX;
                       return (
-                        <motion.li key={w.id} variants={staggerChild} className="h-full">
+                        <motion.li key={w.id} variants={staggerChild} className="flex h-full flex-col gap-2">
                           <button
                             type="button"
                             onClick={() => tryWig(w)}
                             disabled={!!busy}
                             aria-pressed={chosen}
                             aria-busy={loading}
-                            className={`press group relative flex h-full w-full cursor-pointer gap-4 rounded-[20px] bg-surface p-2 text-left ring-1 transition-opacity disabled:cursor-wait ${chosen || loading ? "shadow-[var(--shadow)] ring-2 ring-cover" : "ring-rule hover:shadow-[var(--shadow)] hover:ring-ink-soft/50"} ${busy && !loading ? "opacity-60" : ""}`}
+                            className={`press group relative flex w-full flex-1 cursor-pointer gap-4 rounded-[20px] bg-surface p-2 text-left ring-1 transition-opacity disabled:cursor-wait ${chosen || loading ? "shadow-[var(--shadow)] ring-2 ring-cover" : "ring-rule hover:shadow-[var(--shadow)] hover:ring-ink-soft/50"} ${busy && !loading ? "opacity-60" : ""}`}
                           >
                             <span className={`block aspect-[3/4] w-24 shrink-0 overflow-hidden rounded-[14px] bg-tint ${loading ? "shimmer" : ""}`}>
                               <Photo src={pub(w.file)} alt="" className="group-hover:scale-[1.04]" />
@@ -429,6 +438,16 @@ export function Rebuild({
                                 </span>
                               </span>
                             </span>
+                          </button>
+                          {/* Outside the try-on button: buttons can't nest. */}
+                          <button
+                            type="button"
+                            data-fitting={w.id}
+                            onClick={() => toggleFit(w.id)}
+                            disabled={full}
+                            className={`min-h-10 cursor-pointer self-start rounded-full px-3 text-[13px] ring-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${onList ? "bg-tint text-cover ring-cover/40" : "text-ink-soft ring-rule hover:text-ink"}`}
+                          >
+                            {onList ? "On the fitting list · remove" : full ? "Fitting list full (3)" : "Add to fitting list"}
                           </button>
                         </motion.li>
                       );

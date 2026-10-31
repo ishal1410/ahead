@@ -11,12 +11,13 @@ Built for the YouCam API Skin AI & eCommerce VTO Hackathon.
 
 ## YouCam APIs used
 
-Two YouCam try-on APIs plus the File API:
+Three YouCam APIs plus the File API:
 
 | API | Endpoint | Where |
 |---|---|---|
 | Makeup VTO — `eyebrows` category | `POST /s2s/v2.0/task/makeup-vto` | Draws three brow shapes in the tapped brow colour; later redraws the saved recipe, including on top of a wig render |
 | AI Hairstyle VTO (hair transfer) | `POST /s2s/v2.1/task/hair-transfer` | Renders each wig reference on the user's face |
+| AI Hair Color (full mode, custom palette) | `POST /s2s/v2.0/task/hair-color` | Recolours the chosen wig render to the saved ring shade; brows are then drawn on the recoloured wig |
 | File API | `POST /s2s/v2.0/file` + presigned PUT | Uploads the selfie once; the file id is reused across try-ons |
 
 Renders chain: a wig result URL is passed as `src_file_url` to the eyebrow try-on, so brows are drawn on the full look.
@@ -24,6 +25,16 @@ Renders chain: a wig result URL is passed as `src_file_url` to the eyebrow try-o
 ## Why not just wig try-on?
 
 Perfect Corp and Nao-Art launched medical-wig try-on in Japan (2024). Ahead fixes the step before it: you can only match what you saved. Wigs are ranked by CIE76 ΔE between the hair colour the person tapped before treatment and each wig's ring shade (set by eye, like a retailer colour code), and the brow shape and colour become a reusable recipe.
+
+## For wig retailers
+
+The catalogue is AI-generated reference imagery, not stock, and Ahead shows no prices. A shop integrates by replacing `WIGS` in `lib/catalog.ts` with its own entries. Ranking, try-on, Hair Color, the fitting list and the Match Card work unchanged. The shop adds its own price, SKU and product link per entry. This is a schema, not data:
+
+```json
+{ "id": "shop-123", "label": "Shoulder-length chestnut waves", "shade": "Chestnut", "hex": "#5C3420", "length": "mid", "file": "/refs/shop-123.jpg", "sku": "(shop's own)", "price": "(shop's own)", "url": "(shop's own)" }
+```
+
+The Match Card QR carries the shortlisted ids, so a shop can rebuild the fitting list from a scan.
 
 ## Run it
 

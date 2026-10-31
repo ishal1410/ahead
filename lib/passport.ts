@@ -74,9 +74,10 @@ export function parsePassport(raw: string | null): Passport | null {
 }
 
 // What the QR on the Match Card carries: everything except the photo.
-export function qrPayload(p: Passport): string {
+// fitting: shortlisted wig ids, so a fitter's shop can rebuild the list from the code.
+export function qrPayload(p: Passport, fitting: string[] = []): string {
   const { photoDataUrl: _photo, ...rest } = p;
-  return JSON.stringify(rest);
+  return JSON.stringify(fitting.length ? { ...rest, fitting } : rest);
 }
 
 // A generic, brand-free shade family a wig fitter can map to their own stock.

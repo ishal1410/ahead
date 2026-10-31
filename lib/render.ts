@@ -133,6 +133,24 @@ export interface Look {
   wig?: { id: string; url: string; match: number; dyed?: boolean; expiresAt?: number };
   hat?: { id: string; url: string; onWig: boolean; expiresAt?: number };
   brow?: { url: string; wigId?: string; expiresAt?: number };
+  // Wig ids shortlisted for the fitting (ids only, so nothing in it expires).
+  fitting?: string[];
+}
+
+export const FITTING_MAX = 3;
+
+// The shortlist as restored from session storage is untrusted: known ids only, no repeats, at most 3.
+export function fittingList(raw: unknown, known: { id: string }[]): string[] {
+  if (!Array.isArray(raw)) return [];
+  const ids = new Set(known.map((k) => k.id));
+  return [...new Set(raw.filter((x): x is string => typeof x === "string" && ids.has(x)))].slice(0, FITTING_MAX);
+}
+
+// Add or remove one wig; a full list ignores additions.
+export function toggleFitting(list: string[] | undefined, id: string): string[] {
+  const l = list ?? [];
+  if (l.includes(id)) return l.filter((x) => x !== id);
+  return l.length >= FITTING_MAX ? l : [...l, id];
 }
 
 // What can be shown right now. Brows drawn on another wig are hidden, not "expired".

@@ -4,6 +4,7 @@
 
 export type Length = "short" | "mid" | "long";
 
+// A retailer feed would add its own price, sku and url per entry; Ahead invents none.
 export interface WigRef {
   id: string;
   label: string;     // generic description, never a brand

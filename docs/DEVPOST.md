@@ -22,20 +22,21 @@ Ahead has four steps.
 
 1. **Capture.** You take or upload one photo, face and shoulders, with your hair down and brows visible.
 2. **Look Passport.** You tap your hair and your brow on the photo. The brow tap records a colour. The hair tap suggests a shade on Ahead's colour ring, and you confirm the shade yourself. You choose short, shoulder or long. Then Ahead draws three brow shapes on your face in your brow colour, and you pick the one that looks unchanged. The passport is saved in your browser and can be downloaded as JSON.
-3. **Rebuild.** Later, the Brows tab redraws your saved brow recipe on your photo, or on top of a wig you are trying. The Wigs tab ranks the catalogue by colour distance from the shade you saved, shows a match percentage on every card, and renders the wig you tap on your own face. A "Can you tell?" view puts your original photo and the wig render side by side before revealing which is which.
-4. **Match Card.** A printable card with your photo, the chosen wig render, your hair shade, length and match percentage, your brow shape and colour as a drawing guide, and a QR code holding the passport recipe (without the photo). A "Bring to your fitting" box repeats the American Cancer Society's advice: a lock of hair cut from the top front, compared in natural light; photos of your current hairstyle; and asking your doctor for a "cranial prosthesis" prescription, which some insurers cover. You hand it to a wig fitter or brow artist.
+3. **Rebuild.** Later, the Brows tab redraws your saved brow recipe on your photo, or on top of a wig you are trying. The Wigs tab ranks the catalogue by colour distance from the shade you saved, shows a match percentage on every card, and renders the wig you tap on your own face. "See it in my saved shade" recolours that wig to your ring shade with YouCam Hair Color. You can shortlist up to three wigs on a fitting list. A "Can you tell?" view puts your original photo and the wig render side by side before revealing which is which.
+4. **Match Card.** A printable card with your photo, the chosen wig render, your hair shade, length and match percentage, an "Ask your fitter for" list of your shortlisted wigs in ring-match order, your brow shape and colour as a drawing guide, and a QR code holding the passport recipe and the shortlist (without the photo). A "Bring to your fitting" box repeats the American Cancer Society's advice: a lock of hair cut from the top front, compared in natural light; photos of your current hairstyle; and asking your doctor for a "cranial prosthesis" prescription, which some insurers cover. You hand it to a wig fitter or brow artist.
 
-**Consumer and eCommerce value.** The intended value is a wig shop that starts from a record of the shopper's own hair, not from memory. Wigs are sorted by how close they are to the saved shade, so the shopper sees likely matches first and tries them on her own face. The Match Card gives the fitter the shade, length and brow recipe in one place. The goal is fewer mismatched wig purchases. We have not measured that outcome. In the US, insurance may also help with the cost: ACS advises asking whether your plan covers "cranial prostheses for medical hair loss."
+**Consumer and eCommerce value.** The intended value is a wig shop that starts from a record of the shopper's own hair, not from memory. Wigs are sorted by how close they are to the saved shade, so the shopper sees likely matches first and tries them on her own face. The fitting list is a brand-neutral shopping list: shade, length and style in ranked order, which any fitter can map to their own stock. The Match Card gives the fitter that list, the shade, length and brow recipe in one place. Ahead shows no prices: its wigs are AI-generated references, and price and stock belong to the fitter. The goal is fewer mismatched wig purchases. We have not measured that outcome. In the US, insurance may also help with the cost: ACS advises asking whether your plan covers "cranial prostheses for medical hair loss."
 
 ## How we built it
 
-Ahead is a Next.js 16 App Router app with React 19, Tailwind v4 and TypeScript, deployed on Vercel. It uses two YouCam try-on APIs and the File API.
+Ahead is a Next.js 16 App Router app with React 19, Tailwind v4 and TypeScript, deployed on Vercel. It uses three YouCam APIs and the File API.
 
 - **File API** (`POST /s2s/v2.0/file` plus a presigned PUT). The selfie is uploaded once, and its file id is reused for every try-on in the session. If the id has expired, the client uploads again once before asking the person for a new photo.
 - **Makeup VTO, eyebrows category** (`POST /s2s/v2.0/task/makeup-vto`). It draws three brow presets (straight, soft arch, high arch) in the tapped brow colour, and later redraws the saved recipe.
 - **AI Hairstyle VTO, hair transfer** (`POST /s2s/v2.1/task/hair-transfer`). It renders each wig reference image on the person's face.
+- **AI Hair Color, full mode** (`POST /s2s/v2.0/task/hair-color`). It recolours the chosen wig render to the ring shade the person saved. Most wigs are sold in several shades, so this shows the style in her own colour.
 
-**Render chaining.** A wig result URL is passed as `src_file_url` to the eyebrow try-on, so brows are drawn on the full look. The server accepts a chained source only when it is a YouCam result URL on YouCam's result host, so nobody can push their own images through our API key.
+**Render chaining.** Each result URL is passed as `src_file_url` to the next try-on: wig, then Hair Color, then eyebrows, so brows are drawn on the full look. The server accepts a chained source only when it is a YouCam result URL on YouCam's result host, so nobody can push their own images through our API key.
 
 **Colour ring.** Ahead has a 12-shade digital colour ring, ordered dark to light, then reds, then greys. Each of the 9 wigs has a ring shade assigned by eye, the way a retailer gives a colour code. Ranking uses CIE76 ΔE between the shade the person confirmed and each wig's shade, shown as a match percentage.
 
@@ -57,7 +58,7 @@ Vitest covers the colour maths, the ring, passport parsing and the render client
 
 ## Accomplishments that we're proud of
 
-- Two YouCam APIs working as one look: brows drawn on top of the chosen wig.
+- Three YouCam APIs working as one look: the chosen wig recoloured to her saved shade, then her brows drawn on top.
 - A matching method that admits what a photo can and can't tell you, then gives the person the final say on her shade.
 - A Look Passport that reads like a real document page, and a Match Card that prints.
 - Nothing in the app shows or simulates hair loss.
@@ -68,12 +69,12 @@ Colour sampled from a phone photo moves with the lighting, more than we expected
 
 ## What's next
 
-- Replace by-eye ring shades with shades from a real retailer's colour codes, if a retailer will share them.
+- Replace by-eye ring shades with shades from a real retailer's colour codes, if a retailer will share them. A shop plugs in by swapping `lib/catalog.ts` for its stock, with its own price and SKU on each entry.
 - Test the flow with people preparing for treatment and with wig fitters. We have not done this yet.
 
 ## Built with
 
-nextjs, react, typescript, tailwindcss, vercel, youcam-api, perfect-corp, makeup-vto, hair-transfer, sharp, qrcode, vitest
+nextjs, react, typescript, tailwindcss, vercel, youcam-api, perfect-corp, makeup-vto, hair-transfer, hair-color, sharp, qrcode, vitest
 
 ## Try it
 

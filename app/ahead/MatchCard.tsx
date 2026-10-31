@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import type { HatRef, WigRef } from "@/lib/catalog";
 import { browLabel, browTone, qrPayload, shadeFamily, wigShade, type Passport } from "@/lib/passport";
-import { liveLook, type Look } from "@/lib/render";
+import { fittingList, liveLook, type Look } from "@/lib/render";
+import { rankByColour } from "@/lib/color";
 import { Button, Photo } from "./ui";
 import { motion } from "motion/react";
 import { motionTokens, staggerChild, staggerParent } from "./motion";
@@ -64,12 +65,17 @@ export function MatchCard({
   const wig = lookWig && wigs.find((w) => w.id === lookWig.id);
   const hat = look.hat && hats.find((h) => h.id === look.hat!.id);
   const whose = persona ? `${holder}'s` : "your";
+  // Shortlist in ring-match order, so "first one out of stock? ask for the next" reads top-down.
+  // The pictured wig is always on it, so the list replaces the "wig chosen" rows (one A5 page).
+  const fitting = fittingList(look.fitting, wigs);
+  const shortlist = fitting.length ? rankByColour(wigs, passport.hairHex).filter((w) => fitting.includes(w.id) || w.id === wig?.id) : [];
 
   useEffect(() => {
-    QRCode.toDataURL(qrPayload(passport), { margin: 1, width: 360, errorCorrectionLevel: "M", color: { dark: "#1c2420", light: "#ffffff" } })
+    QRCode.toDataURL(qrPayload(passport, fitting), { margin: 1, width: 360, errorCorrectionLevel: "M", color: { dark: "#1c2420", light: "#ffffff" } })
       .then(setQr)
       .catch(() => setQr(undefined));
-  }, [passport]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fitting is derived; its ids are the real dependency
+  }, [passport, fitting.join()]);
 
   return (
     <main id="main" className="mx-auto max-w-6xl px-4 py-10 sm:px-8 lg:py-14">
@@ -126,17 +132,16 @@ export function MatchCard({
               </Row>
               <Row label="Length">{lengthName[passport.hairLength]}</Row>
             </Group>
-            {wig && lookWig && (
+            {wig && lookWig && !shortlist.length && (
               <Group title={persona ? "Wig chosen" : "Wig you chose"}>
                 <Row label="Wig">{wig.label}</Row>
                 <Row label="Shade">
                   <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
                     <Dot hex={wig.hex} />
-                    <span>{wigShade(wig)}</span>
+                    <span>{wigShade(wig)}, {lengthName[wig.length].toLowerCase()}</span>
+                    <span className="text-ink-soft">· {lookWig.dyed ? "recoloured to the saved shade" : lookWig.match === 100 ? "same ring shade as the saved hair" : `approx. ${lookWig.match}% ring match to the saved hair`}</span>
                   </span>
                 </Row>
-                <Row label="Length">{lengthName[wig.length]}</Row>
-                <Row label="Colour ring">{lookWig.match === 100 ? "Same shade as the saved hair" : `approx. ${lookWig.match}% match to the saved hair`}</Row>
               </Group>
             )}
             <Group title="Brow guide">
@@ -148,7 +153,7 @@ export function MatchCard({
                   <span className="font-mono text-ink-soft">{passport.brow.hex}</span>
                 </span>
               </Row>
-              <Row label="Thickness">{passport.brow.thickness === 0 ? "As saved" : passport.brow.thickness}</Row>
+              {passport.brow.thickness !== 0 && <Row label="Thickness">{passport.brow.thickness}</Row>}
               {hat && <Row label="Headwear">{hat.label}</Row>}
             </Group>
           </motion.div>
@@ -162,6 +167,29 @@ export function MatchCard({
             <p className="text-center text-[11px] leading-snug text-ink-soft">Scan for the recipe. The photo is not included.</p>
           </motion.div>
         </div>
+
+        {shortlist.length > 0 && (
+          // Full card width, so each wig fits one printed line without crowding the QR.
+          <motion.div variants={staggerParent} className="px-6 pb-6 print:px-5 print:pb-2">
+            <Group title="Ask your fitter for">
+              {shortlist.map((w, i) => (
+                <motion.div key={w.id} variants={piece} className="grid grid-cols-[1.5rem_1fr] gap-2 py-2.5 print:grid-cols-[1rem_1fr] print:py-[2px]">
+                  <dt className="text-[13px] text-ink-soft print:text-[10.5px]">{i + 1}.</dt>
+                  <dd className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] print:gap-x-1.5 print:text-[10.5px]">
+                    <span>{w.label}</span>
+                    <span className="text-ink-soft">·</span>
+                    <Dot hex={w.hex} />
+                    <span>{wigShade(w)}</span>
+                    <span className="text-ink-soft">
+                      · {w.id === wig?.id && lookWig?.dyed ? "recoloured to the saved shade" : w.match === 100 ? "same ring shade" : `approx. ${w.match}%`}
+                      {w.id === wig?.id ? ", pictured" : ""}
+                    </span>
+                  </dd>
+                </motion.div>
+              ))}
+            </Group>
+          </motion.div>
+        )}
 
         {lookBrow && (
           <motion.figure variants={piece} className="border-t border-dashed border-rule px-6 py-4 print:flex print:items-center print:gap-3 print:px-5 print:py-2">
@@ -182,7 +210,10 @@ export function MatchCard({
             <li>Photos of your current hairstyle</li>
             <li>Ask your doctor for a prescription for a &ldquo;cranial prosthesis&rdquo;. Some insurers cover part or all of the cost.</li>
           </ul>
-          <p className="mt-2 text-[12px] text-ink-soft print:mt-0.5 print:text-[9px]">Advice from the American Cancer Society (cancer.org, &ldquo;Wigs for Hair Loss&rdquo;). Cosmetic planning aid. Not medical advice.</p>
+                    <p className="mt-2 text-[12px] text-ink-soft print:mt-0.5 print:text-[9px]">
+            Advice from the American Cancer Society (cancer.org, &ldquo;Wigs for Hair Loss&rdquo;).
+            {shortlist.length > 0 && <> Fitting-list styles are AI-generated references, not products for sale. Prices and stock are your fitter&apos;s.</>} Cosmetic planning aid. Not medical advice.
+          </p>
         </motion.section>
       </motion.article>
     </main>
