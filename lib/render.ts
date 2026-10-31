@@ -4,10 +4,10 @@
 import type { HatRef, WigRef, Length } from "./catalog";
 import type { BrowPresetId } from "./passport";
 
-export type Feature = "wig" | "hat" | "brow";
+export type Feature = "wig" | "hat" | "brow" | "color";
 export type Source = { fileId: string } | { url: string };
 export interface BrowRequest { preset: BrowPresetId; hex: string; thickness?: number; intensity?: number }
-export interface RenderJob { feature: Feature; src: Source; refId?: string; brow?: BrowRequest }
+export interface RenderJob { feature: Feature; src: Source; refId?: string; brow?: BrowRequest; hex?: string }
 
 type Fetch = typeof fetch;
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -129,7 +129,8 @@ export const isExpired = (expiresAt: number | undefined, now = Date.now()) => ex
 // (undefined = never, e.g. demo files). brow.wigId: the wig these brows were drawn
 // on (absent = drawn on the photo).
 export interface Look {
-  wig?: { id: string; url: string; match: number; expiresAt?: number };
+  // dyed: url is the wig recoloured to the saved ring shade (Hair Color API).
+  wig?: { id: string; url: string; match: number; dyed?: boolean; expiresAt?: number };
   hat?: { id: string; url: string; onWig: boolean; expiresAt?: number };
   brow?: { url: string; wigId?: string; expiresAt?: number };
 }
@@ -201,6 +202,9 @@ export interface DemoManifest {
     // Brows drawn on each wig render, by wig id. A plain string is the legacy
     // single render whose wig is unknown, so it is never shown as "on your wig".
     browOnWig?: Record<string, string> | string;
+    // Each wig recoloured to the saved shade, and the saved brows drawn on that, by wig id.
+    dyed?: Record<string, string>;
+    browOnDyed?: Record<string, string>;
   };
   wigs?: WigRef[];
   hats?: HatRef[];
@@ -217,8 +221,8 @@ export async function loadManifest(fetchFn: Fetch = fetch): Promise<DemoManifest
   }
 }
 
-export function demoBrowOnWig(m: DemoManifest, wigId: string | undefined): string | undefined {
-  const map = m.renders.browOnWig;
+export function demoBrowOnWig(m: DemoManifest, wigId: string | undefined, dyed = false): string | undefined {
+  const map = dyed ? m.renders.browOnDyed : m.renders.browOnWig;
   return wigId && map && typeof map === "object" ? map[wigId] : undefined;
 }
 
@@ -226,15 +230,17 @@ export function demoBrowOnWig(m: DemoManifest, wigId: string | undefined): strin
 // Brows on a wig the demo has no render for are drawn on the photo instead.
 export async function renderDemo(
   m: DemoManifest,
-  job: { feature: Feature; refId?: string; brow?: BrowRequest; wigId?: string },
+  job: { feature: Feature; refId?: string; brow?: BrowRequest; wigId?: string; dyed?: boolean },
   sleep = wait,
 ): Promise<string> {
   await sleep(1200);
   const r = m.renders;
   const url =
     job.feature === "brow"
-      ? demoBrowOnWig(m, job.wigId) ?? (job.brow && r.brow[job.brow.preset])
-      : job.refId
+      ? demoBrowOnWig(m, job.wigId, job.dyed) ?? (job.brow && r.brow[job.brow.preset])
+      : job.feature === "color"
+        ? job.wigId && r.dyed?.[job.wigId]
+        : job.refId
         ? (job.feature === "wig" ? r.wig : r.hat)[job.refId]
         : undefined;
   if (!url) throw new Error("This look isn't part of the pre-rendered demo.");

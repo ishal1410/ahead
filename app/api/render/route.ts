@@ -1,4 +1,4 @@
-// Start one try-on (wig, hat, or brows). Returns a task id the browser polls.
+// Start one try-on (wig, hat, brows, or hair colour). Returns a task id the browser polls.
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { buildTaskBody, startTask, uploadImage, normalizeImage, isFeature, friendlyError, type Source, type BrowRecipe } from "@/lib/youcam";
@@ -64,9 +64,14 @@ export async function POST(req: Request) {
   const src = parseSource(body.src);
   if (!src) return Response.json({ error: "Missing photo." }, { status: 400 });
 
-  let opts: { refFileId?: string; brow?: BrowRecipe } = {};
+  let opts: { refFileId?: string; brow?: BrowRecipe; hex?: string } = {};
   let refFile: string | undefined;
-  if (feature === "brow") {
+  if (feature === "color") {
+    // Only a dyed wig render, never a dye job on the raw upload.
+    if (!("url" in src)) return Response.json({ error: "Choose a wig first." }, { status: 400 });
+    if (typeof body.hex !== "string" || !/^#[0-9a-fA-F]{6}$/.test(body.hex)) return Response.json({ error: "Invalid shade." }, { status: 400 });
+    opts = { hex: body.hex };
+  } else if (feature === "brow") {
     const brow = parseBrow(body.brow);
     if (!brow) return Response.json({ error: "Invalid brow recipe." }, { status: 400 });
     opts = { brow };

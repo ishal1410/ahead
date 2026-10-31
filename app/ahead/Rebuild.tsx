@@ -16,7 +16,7 @@ const panelMotion = {
 
 export type { Look };
 export interface Rendered { url: string; onWig: boolean; expiresAt?: number }
-type RenderFn = (feature: "wig" | "hat" | "brow", opts: { refId?: string; onUrl?: string; wigId?: string }) => Promise<Rendered>;
+type RenderFn = (feature: "wig" | "hat" | "brow" | "color", opts: { refId?: string; onUrl?: string; wigId?: string; dyed?: boolean }) => Promise<Rendered>;
 
 type Tab = "brows" | "wigs" | "headwear";
 const TABS: { id: Tab; label: string }[] = [
@@ -80,6 +80,8 @@ export function Rebuild({
       ? `${Whose} saved brows, ${browLabel(passport.brow.preset).toLowerCase()}, drawn ${browsOnWig ? `with the ${wigLabel(brow.wigId!).toLowerCase()}` : `on ${her} photo`}`
       : tab === "headwear" && hat
         ? `${hats.find((h) => h.id === hat.id)?.label ?? "Headwear"}${hat.onWig ? ", over your wig" : ""}`
+        : wig?.dyed && tab !== "brows"
+          ? `${wigLabel(wig.id)}, recoloured to the ${shadeFamily(passport.hairHex).toLowerCase()} ring shade ${persona ? "she" : "you"} saved`
         : wig && tab !== "brows"
           ? `${wigLabel(wig.id)}, ${wig.match === 100 ? "the same colour-ring shade as" : `${wig.match}% colour-ring match to`} the hair ${persona ? "she" : "you"} saved`
           : tab === "brows" && wig
@@ -112,18 +114,25 @@ export function Rebuild({
     }
   }
 
+  // Hair Color API on a wig render: the same wig, in the saved ring shade.
+  async function dyed(w: NonNullable<Look["wig"]>, undyedUrl: string): Promise<NonNullable<Look["wig"]>> {
+    const r = await render("color", { onUrl: undyedUrl, wigId: w.id });
+    return { ...w, url: r.url, dyed: true, expiresAt: r.expiresAt };
+  }
+
   // Re-render the chosen wig when its URL has expired, so brows chain onto a live image.
   async function freshWig(): Promise<Look["wig"]> {
     if (!look.wig) return undefined;
     if (wig) return wig;
     const r = await render("wig", { refId: look.wig.id });
-    const next = { ...look.wig, url: r.url, expiresAt: r.expiresAt };
+    let next: NonNullable<Look["wig"]> = { ...look.wig, url: r.url, expiresAt: r.expiresAt };
+    if (look.wig.dyed) next = await dyed(next, r.url);
     setLook((l) => ({ ...l, wig: next }));
     return next;
   }
 
   async function browsOn(w: Look["wig"]) {
-    const r = await render("brow", { onUrl: w?.url, wigId: w?.id });
+    const r = await render("brow", { onUrl: w?.url, wigId: w?.id, dyed: w?.dyed });
     // Only brows that really sit on the wig render are recorded as on the wig.
     setLook((l) => ({ ...l, brow: { url: r.url, wigId: r.onWig ? w?.id : undefined, expiresAt: r.expiresAt } }));
   }
@@ -148,6 +157,16 @@ export function Rebuild({
       }));
     });
 
+  const dyeWig = () =>
+    run("dye", async () => {
+      const w = await freshWig();
+      if (!w || w.dyed) return;
+      const next = await dyed(w, w.url);
+      setLook((l) => ({ ...l, wig: next }));
+      // Brows drawn on the undyed wig are redrawn on the recoloured one.
+      if (look.brow?.wigId) await browsOn(next);
+    });
+
   const tryHat = (h: HatRef) =>
     run(`hat:${h.id}`, async () => {
       const onUrl = wig?.url;
@@ -170,6 +189,8 @@ export function Rebuild({
       ? `Drawing the brows. ${wait}`
       : busy === "refresh"
         ? `Refreshing this look. ${wait}`
+        : busy === "dye"
+          ? `Recolouring the wig to ${whose} saved shade. ${wait}`
         : busy.startsWith("wig")
           ? `Fitting the ${wigLabel(busy.slice(4)).toLowerCase()}. ${wait}`
           : `Trying the headwear on. ${wait}`
@@ -330,9 +351,19 @@ export function Rebuild({
                 </p>
 
                 {wig && (
-                  <div className="mt-6">
+                  <div className="mt-6 flex flex-wrap items-center gap-3">
+                    {wig.dyed ? (
+                      <span className="rounded-full bg-tint px-3 py-1.5 text-[13px] text-cover">In {whose} saved shade</span>
+                    ) : (
+                      <Button onClick={dyeWig} disabled={!!busy}>See it in {whose} saved shade</Button>
+                    )}
                     <Button variant="quiet" onClick={() => setTellOpen(true)}>Can you tell?</Button>
                   </div>
+                )}
+                {wig && !wig.dyed && (
+                  <p className="mt-2 max-w-[56ch] text-[13px] leading-relaxed text-ink-soft">
+                    Most wigs are sold in several shades. This recolours the same style to {her} saved ring shade.
+                  </p>
                 )}
 
                 {ranked.length === 0 ? (
@@ -448,7 +479,7 @@ export function Rebuild({
       </div>
 
       {tellOpen && wig && (
-        <CanYouTell photoUrl={photoUrl} wigUrl={wig.url} match={wig.match} owner={persona ? `${holder}'s` : "your"} saver={persona ? `${holder} saved` : "you saved"} onClose={() => setTellOpen(false)} />
+        <CanYouTell photoUrl={photoUrl} wigUrl={wig.url} match={wig.match} dyed={!!wig.dyed} owner={persona ? `${holder}'s` : "your"} saver={persona ? `${holder} saved` : "you saved"} onClose={() => setTellOpen(false)} />
       )}
     </main>
   );
@@ -460,7 +491,7 @@ export function Rebuild({
 const SIDES = ["Left", "Right"] as const;
 const coin = () => (Math.random() < 0.5 ? 0 : 1);
 
-function CanYouTell({ photoUrl, wigUrl, match, owner, saver, onClose }: { photoUrl: string; wigUrl: string; match: number; owner: string; saver: string; onClose: () => void }) {
+function CanYouTell({ photoUrl, wigUrl, match, dyed, owner, saver, onClose }: { photoUrl: string; wigUrl: string; match: number; dyed: boolean; owner: string; saver: string; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const firstChoice = useRef<HTMLButtonElement>(null);
   // The verdict mounts after the hint has faded out, so it takes focus as it mounts.
@@ -485,7 +516,7 @@ function CanYouTell({ photoUrl, wigUrl, match, owner, saver, onClose }: { photoU
     setRound((r) => r + 1);
   }
 
-  const sentence = `The ${SIDES[wigSide].toLowerCase()} one is the wig. ${match === 100 ? "Same colour-ring shade as" : `${match}% colour-ring match to`} the hair ${saver}.`;
+  const sentence = `The ${SIDES[wigSide].toLowerCase()} one is the wig. ${dyed ? "Recoloured to the ring shade of" : match === 100 ? "Same colour-ring shade as" : `${match}% colour-ring match to`} the hair ${saver}.`;
   const verdict = correct ? "You spotted it." : "You couldn't tell.";
   const words = sentence.split(" ");
   const portraits = [0, 1].map((i) => ({ src: i === wigSide ? wigUrl : photoUrl, isWig: i === wigSide }));

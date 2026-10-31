@@ -1,4 +1,4 @@
-// YouCam (Perfect Corp) S2S client for the three try-on features Ahead uses.
+// YouCam (Perfect Corp) S2S client for the try-on features Ahead uses.
 // Every feature follows the same verified flow: generic file init -> presigned PUT
 // -> task create -> poll. Shapes were pinned against live calls on 2026-10-28/29
 // (scripts/test-hair-transfer.mjs, scripts/test-brow-vto.mjs).
@@ -7,17 +7,18 @@ import sharp from "sharp";
 
 const BASE = process.env.PERFECTCORP_BASE_URL || "https://yce-api-01.makeupar.com";
 
-export type Feature = "wig" | "hat" | "brow";
+export type Feature = "wig" | "hat" | "brow" | "color";
 
 // Task endpoints per feature. Hair transfer is the v2.1 API; the others are v2.0.
 const TASK_PATH: Record<Feature, string> = {
   wig: "/s2s/v2.1/task/hair-transfer",
   hat: "/s2s/v2.0/task/hat",
   brow: "/s2s/v2.0/task/makeup-vto",
+  color: "/s2s/v2.0/task/hair-color",
 };
 
 export function isFeature(v: unknown): v is Feature {
-  return v === "wig" || v === "hat" || v === "brow";
+  return v === "wig" || v === "hat" || v === "brow" || v === "color";
 }
 
 function auth() {
@@ -80,7 +81,19 @@ export interface BrowRecipe {
   intensity: number; // 0..100
 }
 
-export function buildTaskBody(feature: Feature, src: Source, opts: { refFileId?: string; brow?: BrowRecipe; gender?: string }) {
+// Hair Color renders well lighter than the hex it is given: ring chestnut #5C3420
+// came back light copper, #2A160C came back chestnut (spike 2026-10-31, 4 units).
+// ponytail: one brightness factor calibrated on chestnut only; per-shade dye hexes if blondes drift.
+export const DYE_FACTOR = 0.46;
+export function dyeHex(hex: string, k = DYE_FACTOR): string {
+  return "#" + [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * k).toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+
+export function buildTaskBody(feature: Feature, src: Source, opts: { refFileId?: string; brow?: BrowRecipe; gender?: string; hex?: string }) {
+  if (feature === "color") {
+    // Presets ignore the hex (preset "Chocolate Brown" came back pink), so full mode + palette only.
+    return { ...srcFields(src), pattern: { name: "full" }, palettes: [{ color: dyeHex(opts.hex!), color_intensity: 100, shine_intensity: 0 }] };
+  }
   if (feature === "wig") return { ...srcFields(src), ref_file_id: opts.refFileId };
   if (feature === "hat") {
     // gender + style are required by the hat API; style only shapes the generated

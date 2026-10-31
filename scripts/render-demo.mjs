@@ -2,7 +2,7 @@
 // static file, so the public demo path costs zero units. Merges into
 // public/demo/manifest.json, so jobs can be run a few at a time.
 // Run: node scripts/render-demo.mjs <job> [job...]
-//   jobs: sample | brow:<Preset> | wig:<wigId> | best:<wigId> | hat:<hatId> (on the best wig)
+//   jobs: sample | brow:<Preset> | wig:<wigId> | dye:<wigId> | best:<wigId> | hat:<hatId> (on the best wig)
 //         | browOnWig  (saved brow recipe drawn on the best wig render)
 import "./env.mjs";
 import sharp from "sharp";
@@ -12,7 +12,7 @@ const BASE = process.env.PERFECTCORP_BASE_URL || "https://yce-api-01.makeupar.co
 const auth = { Authorization: `Bearer ${process.env.PERFECTCORP_API_KEY}` };
 const MANIFEST = "public/demo/manifest.json";
 const PHOTO = "public/demo/maya.jpg";
-const PATH = { wig: "/s2s/v2.1/task/hair-transfer", hat: "/s2s/v2.0/task/hat", brow: "/s2s/v2.0/task/makeup-vto" };
+const PATH = { wig: "/s2s/v2.1/task/hair-transfer", hat: "/s2s/v2.0/task/hat", brow: "/s2s/v2.0/task/makeup-vto", color: "/s2s/v2.0/task/hair-color" };
 
 if (!existsSync(PHOTO)) {
   await sharp("assets-src/maya-z.jpg").resize({ width: 1024, height: 1024, fit: "inside" }).jpeg({ quality: 92 }).toFile(PHOTO);
@@ -122,6 +122,24 @@ for (const job of process.argv.slice(2)) {
       const r = await run("wig", { src_file_id: await src(), ref_file_id: ref }, `wig-${arg}.jpg`);
       m.renders.wig[arg] = r.local;
       m._urls[`wig:${arg}`] = r.url;
+    } else if (kind === "dye") {
+      // Hair Color API: the wig render recoloured to the saved ring shade (same
+      // dye hex + settings as lib/youcam.ts buildTaskBody), then the saved brows on it.
+      const k = 0.46; // lib/youcam.ts DYE_FACTOR
+      const hex = "#" + [1, 3, 5].map((i) => Math.round(parseInt(m.passport.hairHex.slice(i, i + 2), 16) * k).toString(16).padStart(2, "0")).join("").toUpperCase();
+      const d = await run("color", {
+        src_file_id: await upload(`public/demo/wig-${arg}.jpg`),
+        pattern: { name: "full" },
+        palettes: [{ color: hex, color_intensity: 100, shine_intensity: 0 }],
+      }, `dyed-${arg}.jpg`);
+      const b = m.passport.brow;
+      const r = await run("brow", {
+        src_file_url: d.url, version: "1.0",
+        effects: [{ category: "eyebrows", pattern: { type: "shape", name: b.preset, curvature: 0, thickness: b.thickness, definition: 60 },
+          palettes: [{ color: b.hex, colorIntensity: b.intensity, texture: "matte" }] }],
+      }, `brow-on-dyed-${arg}.jpg`);
+      m.renders.dyed = { ...m.renders.dyed, [arg]: d.local };
+      m.renders.browOnDyed = { ...m.renders.browOnDyed, [arg]: r.local };
     } else if (kind === "best") {
       m.bestWig = arg;
     } else if (kind === "hat") {

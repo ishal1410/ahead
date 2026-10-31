@@ -43,6 +43,29 @@
       "ash-blonde-bob": "/demo/brow-on-wig-ash-blonde-bob.jpg",
       "honey-long": "/demo/brow-on-wig-honey-long.jpg",
       "silver-short": "/demo/brow-on-wig-silver-short.jpg"
+    },
+    "dyed": {
+      "chestnut-wave": "/demo/dyed-chestnut-wave.jpg",
+      "soft-chestnut": "/demo/dyed-soft-chestnut.jpg",
+      "caramel-bob": "/demo/dyed-caramel-bob.jpg",
+      "espresso-straight": "/demo/dyed-espresso-straight.jpg",
+      "auburn-long": "/demo/dyed-auburn-long.jpg",
+      "honey-long": "/demo/dyed-honey-long.jpg",
+      "ash-blonde-bob": "/demo/dyed-ash-blonde-bob.jpg",
+      "black-pixie": "/demo/dyed-black-pixie.jpg",
+      "silver-short": "/demo/dyed-silver-short.jpg"
+    },
+    "browOnDyed": {
+      "chestnut-wave": "/demo/brow-on-dyed-chestnut-wave.jpg",
+      "soft-chestnut": "/demo/brow-on-dyed-soft-chestnut.jpg",
+      "caramel-bob": "/demo/brow-on-dyed-caramel-bob.jpg",
+      "espresso-straight": "/demo/brow-on-dyed-espresso-straight.jpg",
+      "auburn-long": "/demo/brow-on-dyed-auburn-long.jpg",
+      "honey-long": "/demo/brow-on-dyed-honey-long.jpg",
+      "ash-blonde-bob": "/demo/brow-on-dyed-ash-blonde-bob.jpg",
+      "black-pixie": "/demo/brow-on-dyed-black-pixie.jpg",
+      "silver-short": "/demo/brow-on-dyed-silver-short.jpg"
     }
-  }
+  },
+  "_urls": {}
 }

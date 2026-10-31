@@ -29,6 +29,8 @@ export interface RenderOpts {
   refId?: string;
   onUrl?: string;
   wigId?: string;
+  dyed?: boolean; // the wig render was recoloured (demo picks the matching brow render)
+  hex?: string; // hair colour: the saved ring shade
   brow?: { preset: BrowPresetId; hex: string; thickness?: number; intensity?: number };
 }
 
@@ -221,14 +223,14 @@ export function AheadApp() {
   const render = useCallback(
     async (feature: Feature, opts: RenderOpts): Promise<Rendered> => {
       const s = live.current.session;
-      const onWig = feature === "brow" && (demo ? !!demoBrowOnWig(demo, opts.wigId) : !!opts.onUrl);
+      const onWig = feature === "brow" && (demo ? !!demoBrowOnWig(demo, opts.wigId, opts.dyed) : !!opts.onUrl);
       // The source is part of the key: brows on a wig render never reuse brows on the photo.
-      const source = demo ? (onWig ? opts.wigId : null) : opts.onUrl ?? null;
-      const key = JSON.stringify([s?.mode, s?.photoUrl, feature, opts.refId ?? null, opts.brow ?? null, source]);
+      const source = demo ? (onWig || feature === "color" ? [opts.wigId, !!opts.dyed] : null) : opts.onUrl ?? null;
+      const key = JSON.stringify([s?.mode, s?.photoUrl, feature, opts.refId ?? null, opts.brow ?? null, opts.hex ?? null, source]);
       try {
         const { value, expiresAt } = await cache.current.run(key, () => {
-          if (demo) return renderDemo(demo, { feature, refId: opts.refId, brow: opts.brow, wigId: opts.wigId });
-          const job = { feature, refId: opts.refId, brow: opts.brow };
+          if (demo) return renderDemo(demo, { feature, refId: opts.refId, brow: opts.brow, wigId: opts.wigId, dyed: opts.dyed });
+          const job = { feature, refId: opts.refId, brow: opts.brow, hex: opts.hex };
           return opts.onUrl ? renderLive({ ...job, src: { url: opts.onUrl } }) : renderFromPhoto(job, ensureFileId);
         });
         return { url: value, onWig, expiresAt: demo ? undefined : expiresAt };
@@ -444,7 +446,7 @@ export function AheadApp() {
             hats={hats}
             look={look}
             setLook={setLook}
-            render={(feature, opts) => render(feature, feature === "brow" ? { ...opts, brow: passport.brow } : opts)}
+            render={(feature, opts) => render(feature, feature === "brow" ? { ...opts, brow: passport.brow } : feature === "color" ? { ...opts, hex: passport.hairHex } : opts)}
             onCard={() => go("card")}
           />
         )}
