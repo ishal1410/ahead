@@ -9,6 +9,8 @@ Ahead helps people preparing for chemotherapy save their look while their hair i
 
 Built for the YouCam API Skin AI & eCommerce VTO Hackathon.
 
+**Demo video (2:55):** https://vimeo.com/1241859352
+
 ## YouCam APIs used
 
 Three YouCam APIs plus the File API:

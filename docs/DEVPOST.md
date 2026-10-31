@@ -80,6 +80,8 @@ nextjs, react, typescript, tailwindcss, vercel, youcam-api, perfect-corp, makeup
 
 Live app: https://ahead-beta.vercel.app
 
+Demo video (2:55): https://vimeo.com/1241859352
+
 See Maya's demo makes no API calls. It runs the whole flow from pre-rendered results, so start there. Live try-on with your own photo is capped daily to keep it available until judging ends.
 
 ## Limits and honesty
