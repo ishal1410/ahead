@@ -327,10 +327,13 @@ export function Rebuild({
                     <dt className="text-[13px] text-ink-soft">Shape</dt>
                     <dd className="mt-1 text-lg">{browLabel(passport.brow.preset)}</dd>
                   </div>
-                  <div>
-                    <dt className="text-[13px] text-ink-soft">Thickness</dt>
-                    <dd className="mt-1 text-lg">{passport.brow.thickness === 0 ? "As saved" : passport.brow.thickness}</dd>
-                  </div>
+                  {/* Only a real adjustment is worth a field; the default says nothing. */}
+                  {passport.brow.thickness !== 0 && (
+                    <div>
+                      <dt className="text-[13px] text-ink-soft">Thickness</dt>
+                      <dd className="mt-1 text-lg">{passport.brow.thickness}</dd>
+                    </div>
+                  )}
                   <div>
                     <dt className="text-[13px] text-ink-soft">Colour</dt>
                     <dd className="mt-1"><Swatch hex={passport.brow.hex} label={browTone(passport.brow.hex)} size="sm" /></dd>
