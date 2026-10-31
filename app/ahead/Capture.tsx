@@ -15,9 +15,13 @@ export function Capture({ onConfirm, busy, error, note }: { onConfirm: (url: str
   const [file, setFile] = useState<File | null>(null);
   const [url, setUrl] = useState<string>();
   const [localError, setLocalError] = useState<string>();
+  const [unreadable, setUnreadable] = useState(false);
+  // Biometric-style data: nothing is uploaded until the person agrees (unchecked by default).
+  const [consent, setConsent] = useState(false);
 
   function pick(f: File | undefined) {
     setLocalError(undefined);
+    setUnreadable(false);
     if (!f) return;
     if (!/^image\/(jpeg|png|webp)$/.test(f.type)) return setLocalError("Please choose a JPEG, PNG, or WebP photo.");
     if (f.size > 10 * 1024 * 1024) return setLocalError("Please choose a photo under 10 MB.");
@@ -61,7 +65,16 @@ export function Capture({ onConfirm, busy, error, note }: { onConfirm: (url: str
         <div className="flex min-h-[420px] flex-col items-center justify-center gap-6 rounded-[14px] bg-tint/60 p-6 text-center">
           {url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={url} alt="Your selected photo" className="max-h-[440px] w-auto rounded-[14px] object-contain" />
+            <img
+              src={url}
+              alt={unreadable ? "" : "Your selected photo"}
+              hidden={unreadable}
+              onError={() => {
+                setUnreadable(true);
+                setLocalError("That file isn't a photo we can read. Please choose another.");
+              }}
+              className="max-h-[440px] w-auto rounded-[14px] object-contain"
+            />
           ) : (
             <div className="grid gap-2">
               <p className="font-display text-2xl">Add your photo</p>
@@ -69,13 +82,30 @@ export function Capture({ onConfirm, busy, error, note }: { onConfirm: (url: str
             </div>
           )}
 
+          {file && url && !unreadable && (
+            <label className="flex max-w-[44ch] cursor-pointer items-start gap-3 text-left text-[14px] leading-relaxed">
+              <input
+                type="checkbox"
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
+                data-consent
+                className="mt-1 size-5 shrink-0 cursor-pointer accent-[var(--cover)]"
+              />
+              <span>
+                I agree my photo is sent to Perfect Corp&apos;s YouCam API to render try-ons. Ahead does not keep it.{" "}
+                <a href="/privacy" target="_blank" rel="noopener" className="underline decoration-rule underline-offset-4 hover:decoration-ink">
+                  Privacy
+                </a>
+              </span>
+            </label>
+          )}
           <div className="flex flex-col gap-3 sm:flex-row">
             <label className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-full px-6 text-[15px] font-medium ring-1 ring-inset ring-rule transition-colors duration-300 ease-calm hover:bg-tint focus-within:outline-2 focus-within:outline-offset-3 focus-within:outline-cover">
               {url ? "Choose a different photo" : "Take or choose a photo"}
               <input type="file" accept="image/*" capture="user" className="sr-only" onChange={(e) => pick(e.target.files?.[0])} />
             </label>
             {file && url && (
-              <Button onClick={() => onConfirm(url)} disabled={busy}>
+              <Button onClick={() => onConfirm(url)} disabled={busy || unreadable || !consent}>
                 {busy ? "Uploading your photo" : "Use this photo"}
               </Button>
             )}

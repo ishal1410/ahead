@@ -61,6 +61,7 @@ export async function uploadPhoto(blob: Blob, fetchFn: Fetch = fetch): Promise<s
   form.append("image", blob, "photo.jpg");
   const res = await call(fetchFn, "/api/upload", { method: "POST", body: form });
   const body = await json(res);
+  if (res.status === 429 && body.capped) throw new CappedError(String(body.error));
   if (!res.ok || typeof body.fileId !== "string") throw new RenderError(String(body.error ?? "Upload failed. Please try again."));
   return body.fileId;
 }

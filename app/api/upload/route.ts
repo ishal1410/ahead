@@ -1,13 +1,15 @@
 // Upload a selfie once; the returned file id is reused by every try-on that
 // starts from the original photo.
 import { normalizeImage, uploadImage } from "@/lib/youcam";
-import { sniffImageMime, clientIdentity, RateLimiter } from "@/lib/guards";
+import { sniffImageMime, clientIdentity, liveOff, RateLimiter } from "@/lib/guards";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 // Uploads are free upstream; this only stops the endpoint being used as a relay.
 const limiter = new RateLimiter({ windowMs: 60 * 60 * 1000, perClient: 20, global: 300 });
 
 export async function POST(req: Request) {
+  const off = liveOff();
+  if (off) return off;
   if (!limiter.check(clientIdentity(req.headers), Date.now()).allowed) {
     return Response.json({ error: "Too many uploads. Please wait a little and try again." }, { status: 429 });
   }

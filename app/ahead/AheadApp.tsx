@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { HATS, WIGS } from "@/lib/catalog";
 import {
-  SESSION_KEY, STORAGE_KEY, draftFromPassport, parsePassport, parseSessionState, popTarget, resumeTarget,
+  DRAFT_KEY, SESSION_KEY, STORAGE_KEY, draftFromPassport, forgetStored, parseDraftState, parsePassport, parseSessionState, popTarget, resumeTarget,
   type AppStep, type BrowPresetId, type Draft, type Passport, type Resume, type SessionState,
 } from "@/lib/passport";
 import {
@@ -10,7 +10,7 @@ import {
   type DemoManifest, type Feature, type Look,
 } from "@/lib/render";
 import { dataUrlToBlob, downloadText, loadImage, toJpegBlob, toJpegDataUrl } from "@/lib/browser";
-import { Landing } from "./Landing";
+import { Landing, LegalLinks } from "./Landing";
 import { Capture } from "./Capture";
 import { PassportStep } from "./PassportStep";
 import { Rebuild, type Rendered } from "./Rebuild";
@@ -64,6 +64,8 @@ export function AheadApp() {
   const cache = useRef(createRenderCache<string>());
   const fileId = useRef<Promise<string> | null>(null);
   const photoBlob = useRef<Blob | null>(null);
+  // The photo at 512px as a data URL, so an unsaved draft survives a reload (sessionStorage).
+  const draftPhoto = useRef<string | null>(null);
   // Latest values for async callbacks and listeners (never a stale closure).
   const live = useRef({ session, step, saved, passport });
   live.current = { session, step, saved, passport };
@@ -80,6 +82,12 @@ export function AheadApp() {
     cache.current.reset();
     fileId.current = null;
     photoBlob.current = null;
+    draftPhoto.current = null;
+    try {
+      sessionStorage.removeItem(DRAFT_KEY);
+    } catch {
+      /* storage blocked */
+    }
     live.current.session = next;
     setSession(next);
     setDraftRaw({});
@@ -116,7 +124,9 @@ export function AheadApp() {
   useEffect(() => {
     let p: Passport | null = null;
     let stored: SessionState<Look> | null = null;
+    let unsaved = null;
     try {
+      unsaved = parseDraftState(sessionStorage.getItem(DRAFT_KEY));
       p = parsePassport(localStorage.getItem(STORAGE_KEY));
       setSaved(p);
       live.current.saved = p;
@@ -124,7 +134,12 @@ export function AheadApp() {
     } catch {
       /* storage blocked: the app still works, it just can't remember */
     }
-    follow.current(resumeTarget(stepFromUrl(), stored, p), stored);
+    if (unsaved && stepFromUrl() === "passport") {
+      // A refresh before saving: bring back the photo, taps and ring choice.
+      resetSession({ mode: "live", photoUrl: unsaved.photoDataUrl });
+      setDraftRaw(unsaved.draft);
+      go("passport", "replace");
+    } else follow.current(resumeTarget(stepFromUrl(), stored, p), stored);
     hydrated.current = true;
     loadManifest().then((m) => m && setManifest((cur) => cur ?? m));
   }, []);
@@ -152,6 +167,19 @@ export function AheadApp() {
       /* storage blocked: a reload starts over */
     }
   }, [session, passport, saved, look]);
+
+  // Keep the unsaved live draft for this tab; a saved passport needs no draft copy.
+  useEffect(() => {
+    if (!hydrated.current || session?.mode !== "live") return;
+    const isSaved = !!passport && saved?.savedAt === passport.savedAt;
+    const photo = session.photoUrl.startsWith("data:") ? session.photoUrl : draftPhoto.current;
+    try {
+      if (isSaved || !photo) sessionStorage.removeItem(DRAFT_KEY);
+      else sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ photoDataUrl: photo, draft }));
+    } catch {
+      /* storage full or blocked: a reload starts over */
+    }
+  }, [session, draft, passport, saved]);
 
   // Runs when the next screen mounts (after the old one has faded out): start it at
   // the top and move focus to its heading so screen readers hear the change.
@@ -250,7 +278,8 @@ export function AheadApp() {
     setUploading(true);
     setUploadError(undefined);
     try {
-      const blob = await toJpegBlob(await loadImage(url), 1024);
+      const img = await loadImage(url);
+      const blob = await toJpegBlob(img, 1024);
       // A demo or new session started while uploading owns the screen now: drop this result.
       const id = await cache.current.guard(uploadPhoto(blob));
       if (live.current.step !== "capture") return;
@@ -258,11 +287,13 @@ export function AheadApp() {
       const s = live.current.session;
       if (s?.photoUrl !== url || s.mode !== "live") resetSession({ mode: "live", photoUrl: url });
       photoBlob.current = blob;
+      draftPhoto.current = toJpegDataUrl(img, 512);
       fileId.current = Promise.resolve(id);
       setCaptureNote(undefined);
       go("passport");
     } catch (e) {
       if (e instanceof StaleError) return;
+      if (e instanceof CappedError) setCapped(e.message); // live paused: offer Maya's demo
       setUploadError(e instanceof Error ? e.message : "Upload failed. Please try again.");
     } finally {
       setUploading(false);
@@ -290,6 +321,19 @@ export function AheadApp() {
         /* storage full or blocked: the download still works */
       }
     }
+  }
+
+  function deletePassport() {
+    if (!window.confirm("Delete the Look Passport saved in this browser, including its photo? This can't be undone.")) return;
+    try {
+      forgetStored(localStorage, sessionStorage);
+    } catch {
+      /* storage blocked: nothing was stored */
+    }
+    setSaved(null);
+    live.current.saved = null;
+    resetSession(null);
+    go("landing");
   }
 
   function openSaved() {
@@ -371,7 +415,7 @@ export function AheadApp() {
         exit={{ opacity: 0, y: -motionTokens.distance.xs, transition: { duration: motionTokens.duration.fast, ease: motionTokens.easing.sharp } }}
       >
         {step === "landing" && (
-          <Landing onStart={startLive} onDemo={() => startDemo()} demoState={demoState} saved={saved} onOpenSaved={openSaved} specimenPhoto={manifest?.persona.photo} specimen={manifest?.passport} />
+          <Landing onStart={startLive} onDemo={() => startDemo()} demoState={demoState} saved={saved} onOpenSaved={openSaved} onDelete={deletePassport} specimenPhoto={manifest?.persona.photo} specimen={manifest?.passport} />
         )}
         {step === "capture" && <Capture onConfirm={confirmPhoto} busy={uploading} error={uploadError} note={captureNote} />}
         {step === "passport" && session && (
@@ -409,6 +453,15 @@ export function AheadApp() {
         )}
       </motion.div>
       </AnimatePresence>
+
+      {step !== "landing" && (
+        <footer className="no-print mt-16 border-t border-rule">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-[14px] text-ink-soft sm:px-8">
+            <LegalLinks onDelete={saved ? deletePassport : undefined} />
+            <p>Cosmetic planning aid. Not medical advice.</p>
+          </div>
+        </footer>
+      )}
     </div>
     </MotionConfig>
   );

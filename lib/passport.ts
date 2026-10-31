@@ -2,7 +2,7 @@
 // (no DOM) so they can be unit-tested; browser-only helpers live in lib/browser.ts.
 
 import { shadeName, suggestShade } from "./hairChart";
-import { hexToRgb, rgbToLab } from "./color";
+import { deltaE, hexToRgb, rgbToLab } from "./color";
 import { BROW_PRESETS, type Length, type WigRef } from "./catalog";
 
 export type BrowPresetId = (typeof BROW_PRESETS)[number]["id"];
@@ -112,8 +112,60 @@ export function browTone(hex: string): string {
 
 // A brow tap that reads this light almost always landed on skin.
 export const BROW_TOO_LIGHT = "That looks like skin. Tap the darkest part of the brow.";
+export const BROW_NOT_BROW = "That doesn't look like a brow (it reads as grey or blue, like clothes or a wall). Tap the brow itself.";
 export function browSampleProblem(hex: string): string | undefined {
-  return lightness(hex) > 60 ? BROW_TOO_LIGHT : undefined;
+  const [L, a, b] = rgbToLab(hexToRgb(hex));
+  if (L > 60) return BROW_TOO_LIGHT;
+  // Brows are warm or near-black. Above L 25 a blue cast, or a flat grey lighter than
+  // most brows, is a sweater or the wall. ponytail: grey brows (L>40) fall back to the picker.
+  if (L > 25 && b < 0) return BROW_NOT_BROW;
+  if (L > 40 && Math.hypot(a, b) < 6) return BROW_NOT_BROW;
+  return undefined;
+}
+
+// A hair tap that matches several patches along the photo's edges is the background.
+// One or two matching patches can be hair reaching the frame, so they don't count.
+// The colour ring stays the final say: a refused tap can still be picked there.
+export const HAIR_IS_BACKGROUND = "That looks like the background. Tap your hair, or pick your shade on the ring below.";
+export function hairSampleProblem(hex: string, edges: string[]): string | undefined {
+  const near = edges.filter((e) => deltaE(hex, e) < 10).length;
+  return edges.length && near >= Math.max(2, Math.ceil(edges.length / 3)) ? HAIR_IS_BACKGROUND : undefined;
+}
+
+// "Can't tap the photo?" picker: its pre-filled colour is a real choice once confirmed.
+export const BROW_PICK_DEFAULT = "#3A2A20";
+export function confirmBrowPick(d: Draft, hex: string): Draft {
+  const { browAt: _at, ...rest } = d;
+  return { ...rest, browHex: hex.toUpperCase() };
+}
+
+// The unsaved draft (photo downscaled to 512px, taps, ring choice), kept per tab so a
+// refresh before saving doesn't lose the photo and taps.
+export const DRAFT_KEY = "ahead.draft.v1";
+export interface DraftState { photoDataUrl: string; draft: Draft }
+export function parseDraftState(raw: string | null): DraftState | null {
+  if (!raw) return null;
+  try {
+    const s = JSON.parse(raw);
+    if (typeof s?.photoDataUrl !== "string" || !s.photoDataUrl.startsWith("data:image/") || !s.draft || typeof s.draft !== "object") return null;
+    const r = s.draft, d: Draft = {};
+    if (HEX.test(r.hairHex)) d.hairHex = r.hairHex;
+    if (HEX.test(r.browHex)) d.browHex = r.browHex;
+    if (LENGTHS.includes(r.hairLength)) d.hairLength = r.hairLength;
+    if (BROW_PRESETS.some((b) => b.id === r.browPreset)) d.browPreset = r.browPreset;
+    if (isPoint(r.hairAt)) d.hairAt = r.hairAt;
+    if (isPoint(r.browAt)) d.browAt = r.browAt;
+    return { photoDataUrl: s.photoDataUrl, draft: d };
+  } catch {
+    return null;
+  }
+}
+
+// "Delete my passport": everything Ahead keeps in this browser.
+export function forgetStored(local: Pick<Storage, "removeItem">, session: Pick<Storage, "removeItem">) {
+  local.removeItem(STORAGE_KEY);
+  session.removeItem(SESSION_KEY);
+  session.removeItem(DRAFT_KEY);
 }
 
 // Which session a URL step belongs to, kept per tab (sessionStorage) so Back/Forward and

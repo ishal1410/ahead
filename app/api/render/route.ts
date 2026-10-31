@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { buildTaskBody, startTask, uploadImage, normalizeImage, isFeature, friendlyError, type Source, type BrowRecipe } from "@/lib/youcam";
 import { findRef, isBrowPreset } from "@/lib/catalog";
-import { clientIdentity, RateLimiter } from "@/lib/guards";
+import { clientIdentity, liveOff, RateLimiter } from "@/lib/guards";
 
 // Every successful task spends 1-2 units. The global cap is the real spend bound
 // (per-instance, so it is best-effort on serverless); when it trips, the UI falls
@@ -51,6 +51,8 @@ async function uploadRef(file: string): Promise<string> {
 }
 
 export async function POST(req: Request) {
+  const off = liveOff();
+  if (off) return off;
   let body: Record<string, unknown>;
   try {
     body = await req.json();

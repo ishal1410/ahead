@@ -35,17 +35,29 @@ export async function dataUrlToBlob(url: string): Promise<Blob> {
   return (await fetch(url)).blob();
 }
 
-// Average a 9x9 patch around a point given as fractions (0-1) of the image.
-export function samplePatch(img: HTMLImageElement, fx: number, fy: number): string {
+// Average a 9x9 patch around each point given as fractions (0-1) of the image.
+function samplePatches(img: HTMLImageElement, pts: [number, number][]): string[] {
   const c = document.createElement("canvas");
   c.width = img.naturalWidth;
   c.height = img.naturalHeight;
   const ctx = c.getContext("2d", { willReadFrequently: true })!;
   ctx.drawImage(img, 0, 0);
-  const x = Math.min(c.width - 9, Math.max(0, Math.round(fx * c.width) - 4));
-  const y = Math.min(c.height - 9, Math.max(0, Math.round(fy * c.height) - 4));
-  return averageHex(ctx.getImageData(x, y, 9, 9).data);
+  return pts.map(([fx, fy]) => {
+    const x = Math.min(c.width - 9, Math.max(0, Math.round(fx * c.width) - 4));
+    const y = Math.min(c.height - 9, Math.max(0, Math.round(fy * c.height) - 4));
+    return averageHex(ctx.getImageData(x, y, 9, 9).data);
+  });
 }
+
+export const samplePatch = (img: HTMLImageElement, fx: number, fy: number) => samplePatches(img, [[fx, fy]])[0];
+
+// The photo's background: patches along the top and the upper sides (the lower
+// edges are usually clothes, the top middle is usually hair).
+const EDGE_POINTS: [number, number][] = [
+  [0.03, 0.03], [0.2, 0.02], [0.8, 0.02], [0.97, 0.03],
+  [0.02, 0.2], [0.98, 0.2], [0.02, 0.4], [0.98, 0.4],
+];
+export const edgeSamples = (img: HTMLImageElement) => samplePatches(img, EDGE_POINTS);
 
 export function downloadText(name: string, text: string, type = "application/json") {
   const url = URL.createObjectURL(new Blob([text], { type }));

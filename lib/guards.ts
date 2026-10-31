@@ -9,6 +9,13 @@ export function sniffImageMime(buf: Uint8Array): string | null {
   if (b.length >= 12 && b.toString("ascii", 0, 4) === "RIFF" && b.toString("ascii", 8, 12) === "WEBP") return "image/webp";
   return null;
 }
+// Kill switch: LIVE_OFF=1 stops every upstream call; the UI falls back to Maya's demo.
+export function liveOff(): Response | null {
+  return process.env.LIVE_OFF === "1"
+    ? Response.json({ error: "Live try-on is paused. Maya's demo still works.", capped: true }, { status: 429 })
+    : null;
+}
+
 export interface HeaderBag { get(name: string): string | null }
 
 // Identity used for rate limiting. ONLY platform-set headers are trusted:

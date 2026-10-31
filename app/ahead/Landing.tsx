@@ -65,6 +65,7 @@ export function Landing({
   demoState,
   saved,
   onOpenSaved,
+  onDelete,
   specimenPhoto,
   specimen,
 }: {
@@ -73,6 +74,7 @@ export function Landing({
   demoState: "idle" | "loading" | "missing";
   saved: Passport | null;
   onOpenSaved: () => void;
+  onDelete: () => void;
   specimenPhoto?: string;
   // Maya's demo passport, so the specimen never disagrees with the demo it advertises.
   specimen?: DemoManifest["passport"];
@@ -232,11 +234,31 @@ export function Landing({
 
       <footer className="border-t border-rule">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-10 text-[14px] text-ink-soft sm:px-8 md:flex-row md:justify-between">
-          <p className="max-w-[60ch]">{PRIVACY}</p>
+          <div className="grid max-w-[60ch] gap-3">
+            <p>{PRIVACY}</p>
+            <LegalLinks onDelete={saved ? onDelete : undefined} />
+          </div>
           <p>Cosmetic planning aid. Not medical advice.</p>
         </div>
       </footer>
     </main>
+  );
+}
+
+const link = "underline decoration-rule underline-offset-4 transition-[text-decoration-color] duration-200 hover:decoration-ink";
+
+// Footer links on every screen; "Delete my passport" only when one is saved here.
+export function LegalLinks({ onDelete }: { onDelete?: () => void }) {
+  return (
+    <nav aria-label="Legal" className="flex flex-wrap items-center gap-x-5 gap-y-2">
+      <a href="/privacy" className={link}>Privacy</a>
+      <a href="/terms" className={link}>Terms</a>
+      {onDelete && (
+        <button type="button" onClick={onDelete} className={`min-h-11 cursor-pointer text-danger ${link}`}>
+          Delete my passport
+        </button>
+      )}
+    </nav>
   );
 }
 

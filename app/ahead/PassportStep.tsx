@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { BROW_PRESETS, type Length } from "@/lib/catalog";
-import { LENGTHS, browSampleProblem, type BrowPresetId, type Draft } from "@/lib/passport";
+import { BROW_PICK_DEFAULT, LENGTHS, browSampleProblem, confirmBrowPick, hairSampleProblem, type BrowPresetId, type Draft } from "@/lib/passport";
 import { CappedError, StaleError } from "@/lib/render";
-import { radioKeyIndex, samplePatch } from "@/lib/browser";
+import { edgeSamples, radioKeyIndex, samplePatch } from "@/lib/browser";
 import { HAIR_RING, suggestShade } from "@/lib/hairChart";
 import { PassportPage } from "./PassportPage";
 import { Button, Frame, PersonaNote, Photo, ViewToggle } from "./ui";
@@ -48,6 +48,8 @@ export function PassportStep({
   const [closeUp, setCloseUp] = useState(true);
   const [sampleError, setSampleError] = useState<string>();
   const docRef = useRef<HTMLElement>(null);
+  const edges = useRef<string[]>([]);
+  const [pickHex, setPickHex] = useState(draft.browHex ?? BROW_PICK_DEFAULT);
 
   // Saving stamps the page; bring it into view so the moment is seen. Only on a new
   // save, not when the screen remounts with a passport that was saved earlier.
@@ -65,14 +67,14 @@ export function PassportStep({
     const fy = (e.clientY - r.top) / r.height;
     try {
       const hex = samplePatch(img, fx, fy);
-      // A brow tap that reads as skin is refused gently instead of saved as the brow colour.
-      const problem = target === "brow" ? browSampleProblem(hex) : undefined;
+      // A tap on skin, clothes or the wall is refused gently instead of saved.
+      const problem = target === "brow" ? browSampleProblem(hex) : hairSampleProblem(hex, edges.current);
       setSampleError(problem);
       if (problem) return;
       if (target === "hair") {
-        // A tap only suggests a ring shade; the person confirms it on the ring below.
+        // A tap only suggests a ring shade; the person stays here to confirm it on the
+        // ring, then moves on with "Next: tap your brow".
         setDraft({ ...draft, hairHex: suggestShade(hex).hex, hairAt: [fx, fy] });
-        setTarget("brow");
       } else {
         setDraft({ ...draft, browHex: hex, browAt: [fx, fy] });
       }
@@ -191,6 +193,13 @@ export function PassportStep({
                 src={photoUrl}
                 alt={`Photo of ${holder}. Tap to sample the ${target}.`}
                 onClick={tap}
+                onLoad={(e) => {
+                  try {
+                    edges.current = edgeSamples(e.currentTarget);
+                  } catch {
+                    edges.current = []; // unreadable: no background check, the ring still decides
+                  }
+                }}
                 crossOrigin="anonymous"
                 className="block max-h-[520px] w-auto max-w-full cursor-crosshair rounded-[14px]"
               />
@@ -206,6 +215,14 @@ export function PassportStep({
                   ? "Tap a mid-length strand, away from shine."
                   : "Tap the fullest part of one brow.")}
           </p>
+          {target === "hair" && draft.hairHex && !persona && (
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <span className="text-[14px] text-ink-soft">Check the ring below, then:</span>
+              <Button variant="quiet" onClick={() => { setSampleError(undefined); setTarget("brow"); }} data-next-brow>
+                Next: tap your brow
+              </Button>
+            </div>
+          )}
           <fieldset className="mt-5">
             <legend className="text-[15px] font-medium">Confirm {persona ? `${persona}'s` : "your"} hair shade on the colour ring</legend>
             <p className="mt-1 max-w-[52ch] text-[13px] leading-relaxed text-ink-soft">
@@ -239,9 +256,12 @@ export function PassportStep({
             <summary className="cursor-pointer text-ink-soft">Can&apos;t tap the photo? Choose your brow colour instead</summary>
             <div className="mt-3 flex flex-wrap gap-6">
               <label className="flex items-center gap-3">
-                <input type="color" value={draft.browHex ?? "#3a2a20"} onChange={(e) => setDraft({ ...draft, browHex: e.target.value.toUpperCase() })} className="size-10 cursor-pointer rounded-full" />
+                <input type="color" value={pickHex.toLowerCase()} onChange={(e) => setPickHex(e.target.value.toUpperCase())} className="size-10 cursor-pointer rounded-full" />
                 Brow colour
               </label>
+              <Button variant="quiet" onClick={() => { setSampleError(undefined); setDraft(confirmBrowPick(draft, pickHex)); }}>
+                {draft.browHex === pickHex.toUpperCase() && !draft.browAt ? "Colour recorded" : "Use this colour"}
+              </Button>
             </div>
           </details>
         </section>
