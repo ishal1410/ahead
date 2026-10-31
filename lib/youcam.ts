@@ -4,6 +4,7 @@
 // (scripts/test-hair-transfer.mjs, scripts/test-brow-vto.mjs).
 
 import sharp from "sharp";
+import { BROW_PRESETS } from "./catalog";
 
 const BASE = process.env.PERFECTCORP_BASE_URL || "https://yce-api-01.makeupar.com";
 
@@ -101,11 +102,12 @@ export function buildTaskBody(feature: Feature, src: Source, opts: { refFileId?:
     return { ...srcFields(src), ref_file_id: opts.refFileId, gender: opts.gender ?? "female", style: "style_warm_cozy" };
   }
   const b = opts.brow!;
+  const tune = BROW_PRESETS.find((p) => p.id === b.preset) ?? { curvature: 0, thickness: 0 };
   return {
     ...srcFields(src),
     effects: [{
       category: "eyebrows",
-      pattern: { type: "shape", name: b.preset, curvature: 0, thickness: b.thickness, definition: 60 },
+      pattern: { type: "shape", name: b.preset, curvature: tune.curvature, thickness: Math.max(-100, Math.min(100, b.thickness + tune.thickness)), definition: 60 },
       palettes: [{ color: b.hex, colorIntensity: b.intensity, texture: "matte" }],
     }],
     version: "1.0",

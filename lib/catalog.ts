@@ -38,11 +38,13 @@ export const WIGS: WigRef[] = [
 export const HATS: HatRef[] = [];
 
 // Three visibly different shapes so "which brows are yours?" is a real choice.
-// Labels come from YouCam's eyebrows.json.
+// Labels come from YouCam's eyebrows.json. Drawn over a person's own full brows the
+// presets alone looked near-identical, so each carries its own curvature/thickness
+// (-100..100) to push the outliers apart. Soft arch stays neutral: it is Maya's saved shape.
 export const BROW_PRESETS = [
-  { id: "Straight1", label: "Straight" },
-  { id: "SoftArch1", label: "Soft arch" },
-  { id: "HighArch1", label: "High arch" },
+  { id: "Straight1", label: "Straight", curvature: -100, thickness: 40 },
+  { id: "SoftArch1", label: "Soft arch", curvature: 0, thickness: 0 },
+  { id: "HighArch1", label: "High arch", curvature: 100, thickness: -60 },
 ] as const;
 
 export function findRef(feature: "wig" | "hat", id: string): WigRef | HatRef | undefined {

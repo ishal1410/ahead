@@ -47,3 +47,19 @@ describe("hair colour (Hair Color API)", () => {
     await expect(renderDemo(m, { feature: "color", wigId: "nope" }, now)).rejects.toThrow();
   });
 });
+
+describe("brow presets are drawn visibly apart", () => {
+  const body = (preset: string, thickness = 0) =>
+    (buildTaskBody("brow", { fileId: "f" }, { brow: { preset, hex: "#564843", thickness, intensity: 80 } }) as { effects: { pattern: { curvature: number; thickness: number } }[] }).effects[0].pattern;
+
+  it("each preset carries its own curvature and thickness, soft arch stays neutral", () => {
+    expect(body("Straight1")).toMatchObject({ curvature: -100, thickness: 40 });
+    expect(body("SoftArch1")).toMatchObject({ curvature: 0, thickness: 0 });
+    expect(body("HighArch1")).toMatchObject({ curvature: 100, thickness: -60 });
+  });
+
+  it("saved thickness adds to the preset's and stays in range", () => {
+    expect(body("Straight1", 80).thickness).toBe(100);
+    expect(body("HighArch1", -80).thickness).toBe(-100);
+  });
+});

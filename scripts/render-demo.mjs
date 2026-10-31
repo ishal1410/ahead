@@ -113,7 +113,8 @@ for (const job of process.argv.slice(2)) {
       const b = m.passport.brow;
       const r = await run("brow", {
         src_file_id: await src(), version: "1.0",
-        effects: [{ category: "eyebrows", pattern: { type: "shape", name: arg, curvature: 0, thickness: b.thickness, definition: 60 },
+        // Same per-preset tuning as lib/catalog.ts BROW_PRESETS.
+        effects: [{ category: "eyebrows", pattern: { type: "shape", name: arg, curvature: { Straight1: -100, HighArch1: 100 }[arg] ?? 0, thickness: b.thickness + ({ Straight1: 40, HighArch1: -60 }[arg] ?? 0), definition: 60 },
           palettes: [{ color: b.hex, colorIntensity: b.intensity, texture: "matte" }] }],
       }, `brow-${arg}.jpg`);
       m.renders.brow[arg] = r.local;
