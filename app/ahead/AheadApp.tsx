@@ -432,12 +432,14 @@ export function AheadApp() {
             onDemo={() => startDemo()}
             onSave={savePassport}
             savedAt={passport?.savedAt}
+            stored={!!saved && saved.savedAt === passport?.savedAt}
             onDownload={() => passport && downloadText("look-passport.json", JSON.stringify(passport, null, 2))}
             onContinue={() => go("rebuild")}
           />
         )}
         {step === "rebuild" && session && passport && (
           <Rebuild
+            canDye={!demo || passport.hairHex === demo.passport.hairHex}
             passport={passport}
             photoUrl={session.photoUrl}
             holder={holder}

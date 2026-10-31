@@ -8,7 +8,9 @@ import { clientIdentity, liveOff, RateLimiter } from "@/lib/guards";
 // Every successful task spends 1-2 units. The global cap is the real spend bound
 // (per-instance, so it is best-effort on serverless); when it trips, the UI falls
 // back to Maya's pre-rendered demo.
-const limiter = new RateLimiter({ windowMs: 24 * 60 * 60 * 1000, perClient: 16, global: 60 });
+// ponytail: in-memory per instance, so a cold start resets it; ~409 units must last
+// to Nov 20 (≈16/day). A shared KV counter is the upgrade; LIVE_OFF=1 is the kill switch.
+const limiter = new RateLimiter({ windowMs: 24 * 60 * 60 * 1000, perClient: 8, global: 12 });
 
 // Chained sources must be a previous YouCam result, never an arbitrary URL we
 // would hand upstream on a caller's behalf.

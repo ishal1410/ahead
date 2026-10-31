@@ -40,6 +40,7 @@ export function Rebuild({
   setLook,
   render,
   onCard,
+  canDye = true,
 }: {
   passport: Passport;
   photoUrl: string;
@@ -51,6 +52,8 @@ export function Rebuild({
   setLook: Dispatch<SetStateAction<Look>>;
   render: RenderFn;
   onCard: () => void;
+  // false in the demo once the ring shade differs from the one its recolours were rendered in.
+  canDye?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("brows");
   const [busy, setBusy] = useState<string | null>(null);
@@ -83,7 +86,7 @@ export function Rebuild({
       : tab === "headwear" && hat
         ? `${hats.find((h) => h.id === hat.id)?.label ?? "Headwear"}${hat.onWig ? ", over your wig" : ""}`
         : wig?.dyed && tab !== "brows"
-          ? `${wigLabel(wig.id)}, recoloured to the ${shadeFamily(passport.hairHex).toLowerCase()} ring shade ${persona ? "she" : "you"} saved`
+          ? `${wigLabel(wig.id)}, recoloured towards the ${shadeFamily(passport.hairHex).toLowerCase()} ring shade ${persona ? "she" : "you"} saved`
         : wig && tab !== "brows"
           ? `${wigLabel(wig.id)}, ${wig.match === 100 ? "the same colour-ring shade as" : `${wig.match}% colour-ring match to`} the hair ${persona ? "she" : "you"} saved`
           : tab === "brows" && wig
@@ -101,6 +104,8 @@ export function Rebuild({
   }
 
   async function run(key: string, fn: () => Promise<void>) {
+    // Controls are disabled while rendering, which drops keyboard focus to <body>; restore it after.
+    const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setBusy(key);
     setError(undefined);
     // After the pending state has laid out: a scroll started in the same frame is cancelled by scroll anchoring.
@@ -113,6 +118,9 @@ export function Rebuild({
       setError(e instanceof Error ? e.message : "That try-on didn't finish. Please try again.");
     } finally {
       setBusy(null);
+      requestAnimationFrame(() => {
+        if (document.activeElement === document.body && back?.isConnected) back.focus({ preventScroll: true });
+      });
     }
   }
 
@@ -148,8 +156,9 @@ export function Rebuild({
       if (look.brow) await browsOn(browRefreshSource(look.brow, w));
     });
 
+  // The chosen wig, still live, is already on stage: re-trying it would drop its recolour and brows.
   const tryWig = (w: WigRef & { match: number }) =>
-    run(`wig:${w.id}`, async () => {
+    wig?.id === w.id ? undefined : run(`wig:${w.id}`, async () => {
       const r = await render("wig", { refId: w.id });
       // A new wig makes brows/hats drawn on the old one stale.
       setLook((l) => ({
@@ -165,9 +174,10 @@ export function Rebuild({
       const w = await freshWig();
       if (!w || w.dyed) return;
       const next = await dyed(w, w.url);
-      setLook((l) => ({ ...l, wig: next }));
-      // Brows drawn on the undyed wig are redrawn on the recoloured one.
-      if (look.brow?.wigId) await browsOn(next);
+      const hadBrows = !!look.brow?.wigId;
+      // Brows and headwear drawn on the undyed wig are stale; brows are redrawn on the recoloured one.
+      setLook((l) => ({ ...l, wig: next, brow: l.brow?.wigId ? undefined : l.brow, hat: l.hat?.onWig ? undefined : l.hat }));
+      if (hadBrows) await browsOn(next);
     });
 
   const tryHat = (h: HatRef) =>
@@ -328,7 +338,7 @@ export function Rebuild({
                 </dl>
                 <div className="mt-8 flex flex-wrap items-center gap-3">
                   <Button onClick={drawBrows} disabled={!!busy}>
-                    {brow && (browsOnWig || !wig) ? "Draw them again" : wig ? "Draw my brows on this wig" : "Draw my brows"}
+                    {brow && (browsOnWig || !wig) ? "Draw them again" : wig ? `Draw ${persona ? "her" : "my"} brows on this wig` : `Draw ${persona ? "her" : "my"} brows`}
                   </Button>
                   <span className="text-[14px] text-ink-soft">
                     {browsOnWig
@@ -360,14 +370,16 @@ export function Rebuild({
                 {wig && (
                   <div className="mt-6 flex flex-wrap items-center gap-3">
                     {wig.dyed ? (
-                      <span className="rounded-full bg-tint px-3 py-1.5 text-[13px] text-cover">In {whose} saved shade</span>
-                    ) : (
+                      <span className="rounded-full bg-tint px-3 py-1.5 text-[13px] text-cover">Recoloured towards {whose} saved shade</span>
+                    ) : canDye && wigs.find((x) => x.id === wig.id)?.hex !== passport.hairHex ? (
                       <Button onClick={dyeWig} disabled={!!busy}>See it in {whose} saved shade</Button>
+                    ) : (
+                      <span className="text-[13px] text-ink-soft">The demo&apos;s recolours are in {holder}&apos;s chestnut only. Try it live with your own photo.</span>
                     )}
                     <Button variant="quiet" onClick={() => setTellOpen(true)}>Can you tell?</Button>
                   </div>
                 )}
-                {wig && !wig.dyed && (
+                {wig && !wig.dyed && canDye && wigs.find((x) => x.id === wig.id)?.hex !== passport.hairHex && (
                   <p className="mt-2 max-w-[56ch] text-[13px] leading-relaxed text-ink-soft">
                     Most wigs are sold in several shades. This recolours the same style to {her} saved ring shade.
                   </p>
@@ -419,7 +431,7 @@ export function Rebuild({
                                 </span>
                                 <span className="mt-1 block text-[14px] text-ink-soft">
                                   {wigShade(w)}, {lengthName[w.length].toLowerCase()}
-                                  {w.length === passport.hairLength && ", your length"}
+                                  {w.length === passport.hairLength && `, ${persona ? "her" : "your"} length`}
                                 </span>
                               </span>
                               <span className="block">
@@ -443,6 +455,8 @@ export function Rebuild({
                           <button
                             type="button"
                             data-fitting={w.id}
+                            aria-pressed={onList}
+                            aria-label={onList ? `Remove ${w.label} from the fitting list` : full ? `${w.label}: fitting list full` : `Add ${w.label} to the fitting list`}
                             onClick={() => toggleFit(w.id)}
                             disabled={full}
                             className={`min-h-10 cursor-pointer self-start rounded-full px-3 text-[13px] ring-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${onList ? "bg-tint text-cover ring-cover/40" : "text-ink-soft ring-rule hover:text-ink"}`}
@@ -535,7 +549,7 @@ function CanYouTell({ photoUrl, wigUrl, match, dyed, owner, saver, onClose }: { 
     setRound((r) => r + 1);
   }
 
-  const sentence = `The ${SIDES[wigSide].toLowerCase()} one is the wig. ${dyed ? "Recoloured to the ring shade of" : match === 100 ? "Same colour-ring shade as" : `${match}% colour-ring match to`} the hair ${saver}.`;
+  const sentence = `The ${SIDES[wigSide].toLowerCase()} one is the wig. ${dyed ? "Recoloured towards the ring shade of" : match === 100 ? "Same colour-ring shade as" : `${match}% colour-ring match to`} the hair ${saver}.`;
   const verdict = correct ? "You spotted it." : "You couldn't tell.";
   const words = sentence.split(" ");
   const portraits = [0, 1].map((i) => ({ src: i === wigSide ? wigUrl : photoUrl, isWig: i === wigSide }));

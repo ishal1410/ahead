@@ -9,7 +9,7 @@ export interface WigRef {
   id: string;
   label: string;     // generic description, never a brand
   shade: string;     // generic shade family for the Match Card
-  hex: string;       // representative hair colour, sampled from the reference image
+  hex: string;       // the wig's ring shade (lib/hairChart.ts), assigned by eye
   length: Length;
   file: string;      // path under /public
 }
@@ -26,7 +26,7 @@ export const WIGS: WigRef[] = [
   { id: "soft-chestnut", label: "Soft chestnut waves with warm highlights", shade: "Light chestnut", hex: "#7E5233", length: "mid", file: "/refs/wig-soft-chestnut.jpg" },
   { id: "chestnut-wave", label: "Shoulder-length chestnut waves", shade: "Chestnut", hex: "#5C3420", length: "mid", file: "/refs/wig-chestnut-wave.jpg" },
   { id: "espresso-straight", label: "Shoulder-length straight espresso", shade: "Espresso", hex: "#2E1E17", length: "mid", file: "/refs/wig-espresso-straight.jpg" },
-  { id: "caramel-bob", label: "Medium brown bob with fringe", shade: "Medium brown", hex: "#5E4231", length: "short", file: "/refs/wig-caramel-bob.jpg" },
+  { id: "caramel-bob", label: "Warm chestnut bob with fringe", shade: "Chestnut", hex: "#5C3420", length: "short", file: "/refs/wig-caramel-bob.jpg" },
   { id: "auburn-long", label: "Long layered copper", shade: "Copper", hex: "#A4441E", length: "long", file: "/refs/wig-auburn-long.jpg" },
   { id: "black-pixie", label: "Soft black pixie", shade: "Soft black", hex: "#1E1A18", length: "short", file: "/refs/wig-black-pixie.jpg" },
   { id: "ash-blonde-bob", label: "Light ash brown bob", shade: "Light ash brown", hex: "#8E7B6A", length: "short", file: "/refs/wig-ash-blonde-bob.jpg" },

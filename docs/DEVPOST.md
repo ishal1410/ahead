@@ -40,7 +40,7 @@ Ahead is a Next.js 16 App Router app with React 19, Tailwind v4 and TypeScript, 
 
 **Colour ring.** Ahead has a 12-shade digital colour ring, ordered dark to light, then reds, then greys. Each of the 9 wigs has a ring shade assigned by eye, the way a retailer gives a colour code. Ranking uses CIE76 ΔE between the shade the person confirmed and each wig's shade, shown as a match percentage.
 
-**Spend caps and safeguards.** The render route has a sliding 24-hour limit per client (16) and a global limit (60). When a cap trips, the app offers Maya's pre-rendered demo. Uploads are checked by magic bytes, not the MIME type the client sends, and decoded pixels are capped so a small file can't exhaust memory.
+**Spend caps and safeguards.** The render route has a sliding 24-hour limit per client (8) and a global limit (12), sized so our remaining API units last through judging. Requests a client makes past its own limit don't count against the global one. When a cap trips, the app offers Maya's pre-rendered demo. Uploads are checked by magic bytes, not the MIME type the client sends, and decoded pixels are capped so a small file can't exhaust memory.
 
 **Privacy.** Photos pass through Ahead's server to the YouCam API and are not stored there. The Look Passport lives only in the browser's localStorage. There are no accounts and no database.
 
@@ -80,7 +80,7 @@ nextjs, react, typescript, tailwindcss, vercel, youcam-api, perfect-corp, makeup
 
 Live app: https://ahead-beta.vercel.app
 
-See Maya's demo makes no API calls. It runs the whole flow from pre-rendered results.
+See Maya's demo makes no API calls. It runs the whole flow from pre-rendered results, so start there. Live try-on with your own photo is capped daily to keep it available until judging ends.
 
 ## Limits and honesty
 

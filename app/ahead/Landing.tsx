@@ -20,6 +20,10 @@ const steps = [
     title: "Rebuild",
     body: "Later, see your brows redrawn and wigs ranked by how closely they match the hair you saved, on your own face.",
   },
+  {
+    title: "Match Card",
+    body: "Print your shade, brow guide and a shortlist of wigs to ask for, and hand it to your wig fitter.",
+  },
 ];
 
 const apis = [
@@ -143,7 +147,7 @@ export function Landing({
               How it works
             </h2>
           </Reveal>
-          <motion.ol variants={staggerParent} {...inView} className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
+          <motion.ol variants={staggerParent} {...inView} className="mt-12 grid gap-10 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
             {steps.map((s, i) => (
               <motion.li key={s.title} variants={staggerChild} className="border-t border-rule pt-6">
                 <span aria-hidden className="font-display text-[44px] leading-none text-cover">{i + 1}</span>
@@ -197,7 +201,7 @@ export function Landing({
               Why before
             </h2>
           </Reveal>
-          <motion.ul variants={staggerParent} {...inView} className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
+          <motion.ul variants={staggerParent} {...inView} className="mt-12 grid gap-10 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
             {facts.map((f) => (
               <motion.li key={f.stat} variants={staggerChild} className="border-t border-rule pt-6">
                 <p className="font-display text-[32px] leading-none text-cover">{f.stat}</p>

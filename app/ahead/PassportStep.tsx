@@ -27,6 +27,7 @@ export function PassportStep({
   onDemo,
   onSave,
   savedAt,
+  stored = true,
   onDownload,
   onContinue,
 }: {
@@ -39,6 +40,8 @@ export function PassportStep({
   onDemo: () => void;
   onSave: (img: HTMLImageElement) => void;
   savedAt?: string;
+  // false when the browser refused to keep the saved passport (storage blocked or full).
+  stored?: boolean;
   onDownload: () => void;
   onContinue: () => void;
 }) {
@@ -58,6 +61,8 @@ export function PassportStep({
     if (!savedAt || savedAt === savedOnMount.current) return;
     const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     docRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "center" });
+    // The Save button is gone: hand keyboard focus to the next step instead of <body>.
+    requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-continue]")?.focus({ preventScroll: true }));
   }, [savedAt]);
 
   function tap(e: React.MouseEvent<HTMLImageElement>) {
@@ -133,7 +138,7 @@ export function PassportStep({
         ? "Brow options ready"
         : done === 0
           ? `None of the brow options rendered. ${firstError}`
-          : `${done} brow options ready. ${failed.length} didn't render. ${firstError}`;
+          : `${done} brow option${done === 1 ? "" : "s"} ready. ${failed.length} didn't render. ${firstError}`;
   const ready = !!(draft.hairHex && draft.browHex && draft.hairLength && draft.browPreset);
   const marker = (at: [number, number] | undefined, label: string) =>
     at && (
@@ -253,7 +258,7 @@ export function PassportStep({
             </div>
           </fieldset>
           <details className="mt-4 text-[14px]">
-            <summary className="cursor-pointer text-ink-soft">Can&apos;t tap the photo? Choose your brow colour instead</summary>
+            <summary className="cursor-pointer text-ink-soft">Can&apos;t tap the photo? Choose {persona ? "her" : "your"} brow colour instead</summary>
             <div className="mt-3 flex flex-wrap gap-6">
               <label className="flex items-center gap-3">
                 <input type="color" value={pickHex.toLowerCase()} onChange={(e) => setPickHex(e.target.value.toUpperCase())} className="size-10 cursor-pointer rounded-full" />
@@ -307,7 +312,18 @@ export function PassportStep({
           We draw three shapes on {persona ? "her" : "your"} photo in the brow colour {persona ? "she" : "you"} tapped. Choose the one where nothing seems to have changed. That one is {persona ? "her" : "your"} shape.
         </p>
         <div className="mt-6 flex flex-wrap items-center gap-4">
-          <Button onClick={drawBrows} disabled={!draft.browHex || running > 0}>
+          <Button
+            onClick={async (e) => {
+              const trigger = e.currentTarget;
+              await drawBrows();
+              // Disabled while drawing, so focus fell to <body>: give it back.
+              // Next frame: until React re-renders, the button is still disabled and can't take focus.
+              requestAnimationFrame(() => {
+                if (document.activeElement === document.body) trigger.focus({ preventScroll: true });
+              });
+            }}
+            disabled={!draft.browHex || running > 0}
+          >
             {anyTiles ? "Draw them again" : persona ? "Show her brow options" : "Show my brow options"}
           </Button>
           {!draft.browHex && <span className="text-[14px] text-ink-soft">Tap your brow first.</span>}
@@ -391,7 +407,7 @@ export function PassportStep({
 
       <section aria-label="Save" className="mt-14 flex flex-col gap-4 rounded-[20px] bg-tint/70 p-6 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-[56ch] text-[14px] leading-relaxed text-ink-soft">
-          {savedAt ? (persona ? `Saved for this demo. ${persona}'s passport is not stored in your browser.` : "Saved. Your passport is kept only in this browser. Download a copy to keep it somewhere safe.") : ready ? "Everything is recorded." : "To save, record the hair colour, brow colour, hair length and brow shape."}
+          {savedAt ? (persona ? `Saved for this demo. ${persona}'s passport is not stored in your browser.` : stored ? "Saved. Your passport is kept only in this browser. Download a copy to keep it somewhere safe." : <span className="text-danger">This browser blocked saving, so the passport will be gone when you close this tab. Download a copy now to keep it.</span>) : ready ? "Everything is recorded." : "To save, record the hair colour, brow colour, hair length and brow shape."}
           <span className="mt-1 block">{persona ? DEMO_PRIVACY : PRIVACY}</span>
         </p>
         {!savedAt && (
@@ -412,13 +428,13 @@ export function PassportStep({
             data-next-bar
             className="no-print sticky bottom-3 z-20 mt-6 flex items-center justify-between gap-2 rounded-full bg-surface/95 p-1.5 shadow-[var(--shadow)] ring-1 ring-rule/70 backdrop-blur sm:gap-3 sm:rounded-[20px] sm:p-3 sm:pl-6"
           >
-            <p className="hidden text-[14px] text-ink-soft sm:block">Passport saved. Next: see {persona ? "her" : "your"} brows and wigs.</p>
+            <p className="hidden text-[14px] text-ink-soft sm:block">{stored || persona ? "Passport saved." : "Not kept in this browser: download it."} Next: see {persona ? "her" : "your"} brows and wigs.</p>
             <div className="flex w-full gap-2 sm:w-auto">
               <Button variant="quiet" onClick={onDownload} aria-label="Download passport (JSON)" className="px-4 sm:px-6">
                 <span className="sm:hidden">JSON</span>
                 <span className="hidden sm:inline">Download passport (JSON)</span>
               </Button>
-              <Button onClick={onContinue} className="flex-1 sm:flex-none">Continue to rebuild</Button>
+              <Button data-continue onClick={onContinue} className="flex-1 sm:flex-none">Continue to rebuild</Button>
             </div>
           </motion.div>
         )}

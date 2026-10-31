@@ -71,11 +71,12 @@ export function MatchCard({
   const shortlist = fitting.length ? rankByColour(wigs, passport.hairHex).filter((w) => fitting.includes(w.id) || w.id === wig?.id) : [];
 
   useEffect(() => {
-    QRCode.toDataURL(qrPayload(passport, fitting), { margin: 1, width: 360, errorCorrectionLevel: "M", color: { dark: "#1c2420", light: "#ffffff" } })
+    // Same ids as the printed list (shortlist plus the pictured wig), so card and QR agree.
+    QRCode.toDataURL(qrPayload(passport, shortlist.map((w) => w.id)), { margin: 1, width: 360, errorCorrectionLevel: "M", color: { dark: "#1c2420", light: "#ffffff" } })
       .then(setQr)
       .catch(() => setQr(undefined));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fitting is derived; its ids are the real dependency
-  }, [passport, fitting.join()]);
+  }, [passport, shortlist.map((w) => w.id).join()]);
 
   return (
     <main id="main" className="mx-auto max-w-6xl px-4 py-10 sm:px-8 lg:py-14">
@@ -85,7 +86,7 @@ export function MatchCard({
             {persona ? `${holder}'s` : "Your"} Match Card
           </h1>
           <p className="mt-3 max-w-[52ch] text-lg leading-relaxed text-ink-soft">
-            Print it, or save it as a PDF from the print dialog, and bring it to your wig fitter.
+            Print it, or save it as a PDF from the print dialog, and bring it to {persona ? "her" : "your"} wig fitter.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -96,7 +97,7 @@ export function MatchCard({
 
       <motion.article variants={staggerParent} initial="hidden" animate="visible" aria-label="Match Card" className="print-area guilloche mx-auto mt-10 print:mt-0 max-w-[620px] overflow-hidden rounded-[20px] shadow-[var(--shadow)] ring-1 ring-rule/70">
         <motion.header variants={piece} className="bg-cover px-6 py-5 text-on-cover print:px-5 print:py-3">
-          <p className="text-[13px] opacity-80">Ahead Match Card for {holder}{persona ? ", an AI-generated persona" : ""}</p>
+          <p className="text-[13px] opacity-80">{persona ? `Ahead Match Card for ${holder}, an AI-generated persona` : "Ahead Match Card"}</p>
           <h2 className="mt-1 font-display text-[28px] leading-tight print:text-[22px]">Show this to your wig fitter.</h2>
         </motion.header>
 
@@ -137,9 +138,9 @@ export function MatchCard({
                 <Row label="Wig">{wig.label}</Row>
                 <Row label="Shade">
                   <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <Dot hex={wig.hex} />
-                    <span>{wigShade(wig)}, {lengthName[wig.length].toLowerCase()}</span>
-                    <span className="text-ink-soft">· {lookWig.dyed ? "recoloured to the saved shade" : lookWig.match === 100 ? "same ring shade as the saved hair" : `approx. ${lookWig.match}% ring match to the saved hair`}</span>
+                    <Dot hex={lookWig.dyed ? passport.hairHex : wig.hex} />
+                    <span>{wigShade(lookWig.dyed ? { hex: passport.hairHex } : wig)}, {lengthName[wig.length].toLowerCase()}</span>
+                    <span className="text-ink-soft">· {lookWig.dyed ? "recoloured towards the saved shade" : lookWig.match === 100 ? "same ring shade as the saved hair" : `approx. ${lookWig.match}% ring match to the saved hair`}</span>
                   </span>
                 </Row>
               </Group>
@@ -178,10 +179,10 @@ export function MatchCard({
                   <dd className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] print:gap-x-1.5 print:text-[10.5px]">
                     <span>{w.label}</span>
                     <span className="text-ink-soft">·</span>
-                    <Dot hex={w.hex} />
-                    <span>{wigShade(w)}</span>
+                    <Dot hex={w.id === wig?.id && lookWig?.dyed ? passport.hairHex : w.hex} />
+                    <span>{wigShade(w.id === wig?.id && lookWig?.dyed ? { hex: passport.hairHex } : w)}</span>
                     <span className="text-ink-soft">
-                      · {w.id === wig?.id && lookWig?.dyed ? "recoloured to the saved shade" : w.match === 100 ? "same ring shade" : `approx. ${w.match}%`}
+                      · {w.id === wig?.id && lookWig?.dyed ? "recoloured towards the saved shade" : w.match === 100 ? "same ring shade" : `approx. ${w.match}%`}
                       {w.id === wig?.id ? ", pictured" : ""}
                     </span>
                   </dd>

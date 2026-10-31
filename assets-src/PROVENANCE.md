@@ -1,6 +1,6 @@
 # Asset provenance
 
-All faces and products are AI-generated with Pollinations (model `zimage`, Z-Image Turbo). No real people, no stock, no shop photos.
+All faces and wig references are AI-generated with Pollinations (model `zimage`, Z-Image Turbo). No real people, no stock, no shop photos.
 
 | File | Seed | Prompt |
 |---|---|---|
@@ -13,8 +13,15 @@ All faces and products are AI-generated with Pollinations (model `zimage`, Z-Ima
 | public/refs/wig-ash-blonde-bob.jpg | 106 | Photorealistic studio portrait photograph of a woman wearing a chin-length ash blonde bob wig, hair fully visible, facing the camera straight on, head and shoulders, plain light grey background, soft even light, neutral expression, natural skin, plain grey top, 85mm lens |
 | public/refs/wig-honey-long.jpg | 107 | Photorealistic studio portrait photograph of a woman wearing a long straight honey blonde wig, hair fully visible, facing the camera straight on, head and shoulders, plain light grey background, soft even light, neutral expression, natural skin, plain grey top, 85mm lens |
 | public/refs/wig-silver-short.jpg | 108 | Photorealistic studio portrait photograph of a woman wearing a short layered silver grey wig, hair fully visible, facing the camera straight on, head and shoulders, plain light grey background, soft even light, neutral expression, natural skin, plain grey top, 85mm lens |
-| public/refs/hat-knit-beanie.jpg | 201 | Photorealistic e-commerce product photograph of a single soft oatmeal ribbed knit beanie hat, front view, centered, filling most of the frame, plain white background, soft even studio light, no person, no mannequin, no text, no logo |
-| public/refs/hat-cotton-turban.jpg | 202 | Photorealistic e-commerce product photograph of a single soft sage green jersey cotton turban cap, front view, centered, filling most of the frame, plain white background, soft even studio light, no person, no mannequin, no text, no logo |
-| public/refs/hat-cloche.jpg | 203 | Photorealistic e-commerce product photograph of a single charcoal wool felt cloche hat, front view, centered, filling most of the frame, plain white background, soft even studio light, no person, no mannequin, no text, no logo |
-| public/refs/hat-bucket.jpg | 204 | Photorealistic e-commerce product photograph of a single navy cotton bucket hat, front view, centered, filling most of the frame, plain white background, soft even studio light, no person, no mannequin, no text, no logo |
 | public/refs/wig-soft-chestnut.jpg | 109 | Photorealistic studio portrait photograph of a woman wearing a shoulder-length softly wavy light chestnut brown with warm golden highlights wig, hair fully visible, facing the camera straight on, head and shoulders, plain light grey background, soft even light, neutral expression, natural skin, plain grey top, 85mm lens |
+
+## Derived files
+
+| File | Made from | How |
+|---|---|---|
+| public/demo/maya.jpg | assets-src/maya-z.jpg | Resized to 1024px long side (scripts/render-demo.mjs) |
+| public/demo/brow-*.jpg | public/demo/maya.jpg | YouCam Makeup VTO (eyebrows), live API output (scripts/render-demo.mjs `brow:<preset>`) |
+| public/demo/wig-*.jpg | maya.jpg + public/refs/wig-*.jpg | YouCam hair transfer, live API output (`wigbrow:<id>`) |
+| public/demo/brow-on-wig-*.jpg | public/demo/wig-*.jpg | YouCam Makeup VTO on the wig render (`wigbrow:<id>`) |
+| public/demo/dyed-*.jpg | public/demo/wig-*.jpg | YouCam AI Hair Color to Maya's saved ring shade (`dye:<id>`) |
+| public/demo/brow-on-dyed-*.jpg | public/demo/dyed-*.jpg | YouCam Makeup VTO on the recoloured wig (`dye:<id>`) |

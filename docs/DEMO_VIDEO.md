@@ -1,5 +1,12 @@
 # Ahead: demo video script
 
+> **Required before recording (audit 2026-10-31). The beats below predate these and must be updated:**
+> 1. Three YouCam APIs now, not two. B3 must scroll to the heading "Three YouCam APIs, one look" (the old "Two…" selector no longer exists and Playwright will throw). B3/B11 captions and the end card name all three, including "AI Hair Color · full mode".
+> 2. Show Hair Color on a wig of a *different* shade (Honey blonde or Copper recoloured towards chestnut, using the demo's `dyed-*` renders), not chestnut-on-chestnut, which proves nothing. Caption the chain "wig → Hair Color → brows" in B9.
+> 3. B10: show the fitting list ("Ask your fitter for") on the Match Card.
+> 4. No third-party names in frame: in B2 caption the source as "cancer.org" rather than showing organisation names; crop the Match Card footer in B10.
+> 5. Live spend now: upload + 3 brows + 1 wig (2 units) + 1 Hair Color (1 unit) + 1 brows on the wig ≈ 7 units.
+
 **Runtime:** 2:25 (allowed 1:00 to 3:00; target band 1:45 to 2:30).
 **Format:** silent, captions only (no voice, no music, no presenter). 1920x1080, H.264, uploaded to Vimeo with privacy set to "Anyone".
 **Source footage:** one Playwright run against https://ahead-beta.vercel.app that records the browser. Captions, speed-ups and the end card are added with ffmpeg (`C:\Users\vp141\tools\ffmpeg\bin\ffmpeg.exe`).

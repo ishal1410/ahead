@@ -76,17 +76,20 @@ export class RateLimiter {
     const cutoff = now - this.windowMs;
 
     const recent = (this.hits.get(id) ?? []).filter((t) => t > cutoff);
-    recent.push(now);
-    this.hits.set(id, recent);
-
     this.globalHits = this.globalHits.filter((t) => t > cutoff);
-    this.globalHits.push(now);
 
+    // Decide first, record only allowed requests: a client hammering past its own
+    // limit must not use up the shared budget and lock everyone else out.
+    let verdict: RateVerdict = { allowed: true };
+    if (recent.length >= this.perClient) verdict = { allowed: false, reason: "client" };
+    else if (this.globalHits.length >= this.globalMax) verdict = { allowed: false, reason: "global" };
+    else {
+      recent.push(now);
+      this.globalHits.push(now);
+    }
+    this.hits.set(id, recent);
     this.evict(cutoff);
-
-    if (recent.length > this.perClient) return { allowed: false, reason: "client" };
-    if (this.globalHits.length > this.globalMax) return { allowed: false, reason: "global" };
-    return { allowed: true };
+    return verdict;
   }
 
   // Bound memory WITHOUT wiping live buckets. The old `hits.clear()` let a

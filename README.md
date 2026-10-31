@@ -20,7 +20,7 @@ Three YouCam APIs plus the File API:
 | AI Hair Color (full mode, custom palette) | `POST /s2s/v2.0/task/hair-color` | Recolours the chosen wig render to the saved ring shade; brows are then drawn on the recoloured wig |
 | File API | `POST /s2s/v2.0/file` + presigned PUT | Uploads the selfie once; the file id is reused across try-ons |
 
-Renders chain: a wig result URL is passed as `src_file_url` to the eyebrow try-on, so brows are drawn on the full look.
+Renders chain: each result URL is passed as `src_file_url` to the next try-on (wig → Hair Color → eyebrows), so brows are drawn on the full look. Up to three wigs can be shortlisted on a fitting list, which the Match Card prints as "Ask your fitter for" and carries in its QR code.
 
 ## Why not just wig try-on?
 
