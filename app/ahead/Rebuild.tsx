@@ -82,7 +82,7 @@ export function Rebuild({
     tab === "brows" ? brow?.url ?? wig?.url ?? photoUrl : tab === "wigs" ? wig?.url ?? photoUrl : hat?.url ?? wig?.url ?? photoUrl;
   const stageCaption =
     tab === "brows" && brow
-      ? `${Whose} saved brows, ${browLabel(passport.brow.preset).toLowerCase()}, drawn ${browsOnWig ? `with the ${wigLabel(brow.wigId!).toLowerCase()}` : `on ${her} photo`}`
+      ? `${Whose} saved brows, ${browLabel(passport.brow.preset).toLowerCase()}, drawn ${browsOnWig ? `with the ${wigLabel(brow.wigId!).toLowerCase()}${wig?.dyed ? `, recoloured to ${her} shade` : ""}` : `on ${her} photo`}`
       : tab === "headwear" && hat
         ? `${hats.find((h) => h.id === hat.id)?.label ?? "Headwear"}${hat.onWig ? ", over your wig" : ""}`
         : wig?.dyed && tab !== "brows"
