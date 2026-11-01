@@ -1,5 +1,12 @@
 # Ahead: demo video plan
 
+> **Final video (shipped): https://youtu.be/6Oc-adC5VNA (2:55; Vimeo copy https://vimeo.com/1241859352).**
+> It was made differently from the plan below: one continuous live take of the deployed site, paced by an
+> edge-tts voiceover (each step held for as long as its line runs), with a title card and an end card.
+> **No burned-in captions or badges**; the narration names each YouCam API as it runs live. One 19 s slice
+> of a 34 s hair-transfer wait is cut, and the narration says "It takes about half a minute". The wig shown is
+> Soft chestnut waves, recoloured towards the saved chestnut shade. The sections below are the earlier plan.
+
 **Runtime target:** about 2:20 (rules: 1 to 3 minutes).
 **Format:** silent, burned-in captions (no music, so no copyright risk). 1920x1080, H.264, with a silent AAC track.
 **Footage:** one continuous Playwright take of the live site, https://ahead-beta.vercel.app, on the AI-generated photo. Everything on screen is the deployed app. The recording script lives outside the repo at `scratchpad/video/record.mjs` (same approach as ClauseCatcher's `tools/demo_video/record.py`).
